@@ -1,32 +1,28 @@
-// src/user/user.repository.ts
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { User, UserDocument } from './user.schema';
-import { UserEntity } from './user.entity';
+import { Inject, Injectable } from '@nestjs/common';
+import { Firestore } from 'firebase-admin/firestore';
+import { UserEntity, UserModel } from './user.entity';
+import { getRepository } from 'fireorm';
 
 @Injectable()
 export class UserRepository {
+
+    private userRepository = getRepository(UserModel);
+
     constructor(
-        @InjectModel(User.name) private userModel: Model<UserDocument>,
-    ) {}
+        @Inject('FIRESTORE') private readonly firestore: Firestore
+    ){}
 
     async findAll(): Promise<UserEntity[]> {
-        return this.userModel.find();
+        return await this.userRepository.find();
     }
 
-    async findById(_id: Types.ObjectId): Promise<UserEntity | null> {
-        return this.userModel.findOne({ _id });
+    async update(user: Partial<Omit<UserEntity, 'password'>>): Promise<UserEntity | null> {
+        if (!user.id) return null;
+    
+        const existingUser = await this.userRepository.findById(user.id);
+        if (!existingUser) return null;
+    
+        const updatedUser = Object.assign(existingUser, user)
+        return await this.userRepository.update(updatedUser);
     }
-
-    async findByEmail(email: string): Promise<UserEntity | null> {
-        return this.userModel.findOne({ email });
-    }
-
-    async create(user: Pick<UserEntity, 'email' | 'username'>): Promise<UserEntity> {
-        const newUser = new this.userModel(user);
-        await newUser.save();
-        return newUser.toObject() as UserEntity;
-    }
-
 }

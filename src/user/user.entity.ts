@@ -1,10 +1,20 @@
-import { Types } from 'mongoose';
+import { Collection } from "fireorm";
+
+@Collection('users')
+export class UserModel{
+    id!: string;
+    username!: string;
+    email!: string;
+    password!: string;
+    avatar!: string | null;
+    phoneNumber!: string;
+}
 
 export type UserEntity = {
-    _id: Types.ObjectId;
+    id: string;
     username: string;
     email: string;
-    password: string | null;
+    password: string;
     avatar: string | null;
-    phoneNumber: string | null;
+    phoneNumber: string; 
 };
