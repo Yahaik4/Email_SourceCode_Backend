@@ -27,11 +27,11 @@ export class AuthRepository {
         return await this.userRepository.whereEqualTo('email', email).findOne();
     }
 
-    async login(user: Pick<UserEntity, 'phoneNumber' | 'password'>): Promise<Omit<UserEntity, 'password'> | null> {
-        const existedUser = await this.findUserByPhoneNumber(user.phoneNumber);
+    async login(user: Pick<UserEntity, 'email' | 'password'>): Promise<Omit<UserEntity, 'password'> | null> {
+        const existedUser = await this.findUserByEmail(user.email);
 
         if (existedUser === null){
-            throw new CustomException('Invalid phone number');
+            throw new CustomException('Invalid email');
         }
 
         const comparePassword = await bcrypt.compare(user.password, existedUser.password);

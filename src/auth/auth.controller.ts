@@ -14,9 +14,8 @@ export class AuthController {
     ){}
 
     @Post('login')
-    async login(@Body() user: LoginDto, @Res({ passthrough: true }) res: Response)
-    {
-        try{
+    async login(@Body() user: LoginDto, @Res({ passthrough: true }) res: Response) {
+        try {
             const userData = await this.authService.login(user);
 
             generateToken(res, this.jwtService, {
@@ -26,13 +25,13 @@ export class AuthController {
     
             res.status(200).json({
                 statusCode: 200,
-                msg: "Login Succesfully",
+                msg: "Login Successfully",
                 metadata: true
             });
-        }catch(error){
+        } catch(error) {
             res.status(400).json({
                 statusCode: 400,
-                msg: error.message || 'Login Faild',
+                msg: error.message || 'Login Failed',
                 metadata: false
             });
         }

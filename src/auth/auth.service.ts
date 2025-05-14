@@ -8,7 +8,7 @@ export class AuthService {
         private readonly authRepository: AuthRepository,
     ) {}
     
-    async login(user: Pick<UserEntity, 'phoneNumber' | 'password'>): Promise<Omit<UserEntity, 'password'>> {
+    async login(user: Pick<UserEntity, 'email' | 'password'>): Promise<Omit<UserEntity, 'password'>> {
         const userData = await this.authRepository.login(user);
         if (!userData) {
             throw new UnauthorizedException('Invalid credentials');
