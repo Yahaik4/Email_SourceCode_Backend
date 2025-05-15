@@ -2,7 +2,10 @@ import { IsNotEmpty, IsOptional, IsString, IsEmail } from 'class-validator';
 import { RecipientData, Attachment } from '../email.entity';
 import { Transform } from 'class-transformer';
 
-export class CreateEmailDto{
+export class UpdateEmailDto{
+    @IsNotEmpty()
+    @IsString()
+    id: string;
 
     @IsOptional()
     @IsString()

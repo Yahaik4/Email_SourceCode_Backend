@@ -5,6 +5,10 @@ import { UserEntity, UserModel } from 'src/user/user.entity';
 import * as bcrypt from 'bcrypt';
 import { CustomException } from 'src/common/exceptions/custom.exception';
 import { getRepository } from 'fireorm';
+import { RegisterDto } from './dto/register.dto';
+import { DEFAULT_SETTINGS } from 'src/user/user.entity';
+import * as admin from 'firebase-admin';
+import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthRepository {
@@ -32,6 +36,7 @@ export class AuthRepository {
 
         if (existedUser === null){
             throw new CustomException('Invalid email');
+            throw new CustomException('Invalid email');
         }
 
         const comparePassword = await bcrypt.compare(user.password, existedUser.password);
@@ -43,7 +48,7 @@ export class AuthRepository {
         return result;
     }
 
-    async Register(user: Omit<UserEntity, 'avatar' | 'id'>): Promise<UserEntity>{
+    async Register(user: RegisterDto): Promise<UserEntity>{
         const existedUser = await this.findUserByPhoneNumber(user.phoneNumber);
 
         if (existedUser){
@@ -61,7 +66,11 @@ export class AuthRepository {
         const newUser = await this.userRepository.create({
             ...user,
             password: hashedPassword,
-            avatar: null
+            avatar: null,
+            setting: DEFAULT_SETTINGS,
+            createdAt: admin.firestore.Timestamp.now(),
+            updateAt: admin.firestore.Timestamp.now()
+
         })
 
         return newUser;

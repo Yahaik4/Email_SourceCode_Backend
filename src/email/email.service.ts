@@ -3,6 +3,8 @@ import { EmailRepository } from './email.repository';
 import { EmailEntity } from './email.entity';
 import { CustomException } from 'src/common/exceptions/custom.exception';
 import { AuthRepository } from 'src/auth/auth.repository';
+import { CreateEmailDto } from './dto/create-email.dto';
+import { UpdateEmailDto } from './dto/update-email.dto';
 
 @Injectable()
 export class EmailService {
@@ -19,20 +21,38 @@ export class EmailService {
         return await this.emailRepository.findEmailRerecipient(rerecipientId);
     }
 
-    async createEmail(email: Omit<EmailEntity, 'id'>): Promise<EmailEntity>{
+    async findUserIdByUserEmail(userEmail: string): Promise<string | null>{
+        const user = await this.authRepository.findUserByEmail(userEmail);
+        if(!user){
+            return null;
+        }
 
-        const sender = await this.authRepository.findUserById(email.senderId);
+        return user.id;
+    }
+
+    async findEmailByFolder(folder: string, userId: string): Promise<EmailEntity[]>{
+        return await this.emailRepository.findEmailByFolder(folder, userId);
+    }
+
+    async createEmailDraft(email:CreateEmailDto, senderId: string): Promise<EmailEntity>{
+
+        const sender = await this.authRepository.findUserById(senderId);
         if (!sender) {
             throw new CustomException('Sender does not exist');
         }
-        const checkRecipients = await Promise.all(
-            email.recipientIds.map(id => this.authRepository.findUserById(id))
-        );
 
-        if (checkRecipients.some(r => !r)) {
-            throw new CustomException('One or more recipients do not exist');
-        }
+        return await this.emailRepository.createEmailDraft(email, senderId);
+    }
 
-        return await this.emailRepository.createEmail(email);
+    async updateEmailDraft(email: UpdateEmailDto): Promise<EmailEntity>{
+        return await this.emailRepository.updateEmailDraft(email);
+    }
+
+    async sendEmail(emailId: string): Promise<void>{
+        return await this.emailRepository.sendEmail(emailId);
+    }
+
+    async findAllEmailStarred(userId: string): Promise<EmailEntity[]>{
+        return await this.emailRepository.findAllEmailStarred(userId)
     }
 }

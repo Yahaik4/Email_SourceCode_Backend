@@ -1,13 +1,12 @@
 import { Collection } from "fireorm";
 import * as admin from "firebase-admin"; 
 
-type RecipientData = {
+export type RecipientData = {
     recipientId: string;
     recipientType: 'to' | 'cc' | 'bcc';
-    isRead: boolean;
 };
 
-type Attachment = {
+export type Attachment = {
     fileName: string;
     fileUrl: string;
     mimeType: string;
@@ -21,9 +20,6 @@ export class EmailModel{
     subject!: string;
     body!: string;
     isDraft!: boolean;
-    isStarred!: boolean;
-    folder!: "inbox" | "sent" | "draft" | "starred";
-    recipientIds!: string[]; 
     recipients!: RecipientData[];
     attachments!: Attachment[];
     createdAt!: admin.firestore.Timestamp;
@@ -36,11 +32,31 @@ export type EmailEntity = {
     subject: string;
     body: string;
     isDraft: boolean;
-    isStarred: boolean;
-    folder: "inbox" | "sent" | "draft" | "starred";
-    recipientIds: string[]; 
     recipients: RecipientData[]; 
     attachments: Attachment[];
     createdAt: admin.firestore.Timestamp;
     updatedAt: admin.firestore.Timestamp;
 };
+
+@Collection('UserEmailModel')
+export class UserEmailModel{
+    id!: string;
+    userId!: string;
+    emailId!: string;
+    mainFolder!: "inbox" | "sent" | "draft" | "trash";
+    isStarred!: boolean;
+    isRead!: boolean;
+    customLabels!: string[]; 
+}
+
+export type UserEmailEntity = {
+    id: string;
+    userId: string;
+    emailId: string;
+    mainFolder: "inbox" | "sent" | "draft" | "trash";
+    isStarred: boolean;
+    isRead: boolean;
+    customLabels: string[]; 
+}
+
+

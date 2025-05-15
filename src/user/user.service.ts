@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UserEntity } from './user.entity';
 import { UserRepository } from './user.repository';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UserService {
@@ -10,12 +11,21 @@ export class UserService {
         return await this.userRepository.findAll();
     }
 
-    async updateUser(user: Partial<Omit<UserEntity, 'password'>>): Promise<UserEntity> {
-        if (!user.id) {
+    async updateUser(user: UpdateUserDto, userId: string): Promise<UserEntity> {
+        if (!userId) {
             throw new Error('Missing user ID');
         }
+
+        if(user.email){
+            const existedEmail = await this.userRepository.findUserByEmail(user.email);
+
+            if(existedEmail){
+                throw new Error('Email is Existed');
+            }
+        }
+
     
-        const updatedUser = await this.userRepository.update(user);
+        const updatedUser = await this.userRepository.update(user, userId);
     
         if (!updatedUser) {
             throw new Error('User not found');

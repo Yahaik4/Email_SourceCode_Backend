@@ -1,9 +1,8 @@
 import { IsNotEmpty, IsOptional, IsString, IsEmail } from 'class-validator';
+import { Settings } from '../user.entity';
+import { Transform } from 'class-transformer';
 
 export class UpdateUserDto{
-    @IsNotEmpty()
-    id: string;
-
     @IsOptional()
     @IsString()
     username?: string
@@ -17,7 +16,14 @@ export class UpdateUserDto{
     avatar?: string;
 
     @IsOptional()
-    @IsString()
-    phoneNumber?: string;
+    @Transform(({ value }) => {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return value;
+        }
+    })
+    setting?: Settings;
+
 
 }
