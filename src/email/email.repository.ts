@@ -64,8 +64,39 @@ export class EmailRepository {
         const emails: EmailEntity[] = [];
         for(const emailId of emailIds){
             const email = await this.emailRepository.findById(emailId);
-            emails.push(email);
+
+            if (email.senderId === userId) {
+                emails.push(email);
+                continue;
+            }
+
+            const recipientEntry = email.recipients.find(recipent => recipent.recipientId === userId);
+
+            if (!recipientEntry) {
+                continue;
+            }
+
+            const emailCopy = { ...email, recipients: [...email.recipients] };
+
+            switch (recipientEntry.recipientType) {
+                case 'to':
+                    emailCopy.recipients = emailCopy.recipients.filter(r => r.recipientType === 'to');
+                    break;
+                case 'cc':
+                    break;
+                case 'bcc':
+                    emailCopy.recipients = [
+                        {
+                            recipientId: userId,
+                            recipientType: 'bcc'
+                        }
+                    ];
+                    break;
+            }
+            
+            emails.push(emailCopy);
         }
+
         return emails;
     }
 
@@ -154,5 +185,74 @@ export class EmailRepository {
 
         return emails;
     }
+
+    async moveToTrash(emailId: string, userId: string): Promise<UserEmailEntity> {
+        const email = await this.findUserEmailByUserandEmail(emailId, userId);
+        const existed = await this.userEmailRepository.findById(email.id);
+        email.mainFolder = 'trash';
+        
+        const updated = Object.assign(existed, email);
+        return await this.userEmailRepository.update(updated);
+    }
+
+    async deleteEmail(emailId: string): Promise<boolean> {
+        const email = await this.emailRepository.findById(emailId);
+
+        if(!email.id){
+            throw new Error('Email not found.');
+        }
+
+        await this.emailRepository.delete(email.id);
+
+        return true;
+    }
+
+    async readEmail(emailId: string, userId: string): Promise<EmailEntity>{
+        const email = await this.findUserEmailByUserandEmail(emailId, userId);
+        email.isRead = true;
+        
+        await this.updateUserEmail(email);
+
+        return await this.emailRepository.findById(emailId);
+    }
+
+    async customLabel(emailIds: string[],userId: string, label: string): Promise<UserEmailEntity[]>{
+        const updatedUserEmails: UserEmailEntity[] = [];
+
+        for(const emailId of emailIds){
+            const userEmail = await this.findUserEmailByUserandEmail(emailId, userId);
+            if (!userEmail.customLabels.includes(label)) {
+                userEmail.customLabels.push(label);
+            }
+            
+            await this.userEmailRepository.update(userEmail);
+            updatedUserEmails.push(userEmail);
+        }
+
+        return updatedUserEmails;
+    }
+
+    async searchEmailBySubjectOrLabel(keyword: string, userId: string): Promise<EmailEntity[]> {
+        const lowerKeyword = keyword.toLowerCase();
+    
+        const userEmails = await this.userEmailRepository.whereEqualTo('userId', userId).find();
+    
+        const matchedEmails: EmailEntity[] = [];
+    
+        for (const userEmail of userEmails) {
+            const email = await this.emailRepository.findById(userEmail.emailId);
+    
+            const subjectMatch = email.subject?.toLowerCase().includes(lowerKeyword);
+            const bodyMatch = email.body?.toLowerCase().includes(lowerKeyword);
+            const labelMatch = userEmail.customLabels?.some(label => label.toLowerCase().includes(lowerKeyword));
+    
+            if (subjectMatch || bodyMatch || labelMatch) {
+                matchedEmails.push(email);
+            }
+        }
+    
+        return matchedEmails;
+    }
+    
 
 }

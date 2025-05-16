@@ -36,7 +36,6 @@ export class AuthRepository {
 
         if (existedUser === null){
             throw new CustomException('Invalid email');
-            throw new CustomException('Invalid email');
         }
 
         const comparePassword = await bcrypt.compare(user.password, existedUser.password);

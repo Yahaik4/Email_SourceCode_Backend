@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EmailRepository } from './email.repository';
-import { EmailEntity } from './email.entity';
+import { EmailEntity, UserEmailEntity } from './email.entity';
 import { CustomException } from 'src/common/exceptions/custom.exception';
 import { AuthRepository } from 'src/auth/auth.repository';
 import { CreateEmailDto } from './dto/create-email.dto';
@@ -55,4 +55,25 @@ export class EmailService {
     async findAllEmailStarred(userId: string): Promise<EmailEntity[]>{
         return await this.emailRepository.findAllEmailStarred(userId)
     }
+
+    async moveToTrash(emailId: string, userId: string): Promise<UserEmailEntity> {
+        return await this.emailRepository.moveToTrash(emailId, userId);
+    }
+
+    async deleteEmail(emailId: string): Promise<boolean> {
+        return this.emailRepository.deleteEmail(emailId);
+    }
+
+    async updateReadEmail(emailId: string, userId: string): Promise<EmailEntity>{
+        return await this.emailRepository.readEmail(emailId, userId);
+    }
+
+    async customLabel(emailIds: string[], userId: string, label: string): Promise<UserEmailEntity[]>{
+        return this.emailRepository.customLabel(emailIds, userId, label);
+    }
+
+    async searchEmailBySubjectOrLabel(keyword: string, userId: string): Promise<EmailEntity[]> {    
+        return this.emailRepository.searchEmailBySubjectOrLabel(keyword, userId);
+    }
+    
 }
