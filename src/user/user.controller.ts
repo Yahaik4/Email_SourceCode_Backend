@@ -34,6 +34,38 @@ export class UserController {
         }
     }
 
+    @Post('email')
+    async getUserByEmail(@Body('email') email: string, @Res() res: Response) {
+        try {
+            if (!email) {
+                return res.status(400).json({
+                    statusCode: 400,
+                    msg: "Email is required in request body",
+                    metadata: false
+                });
+            }
+            const user = await this.userService.findUserByEmail(email);
+            if (!user) {
+                return res.status(404).json({
+                    statusCode: 404,
+                    msg: "User not found",
+                    metadata: false
+                });
+            }
+            return res.status(200).json({
+                statusCode: 200,
+                msg: "Get User by Email Successfully",
+                metadata: user
+            });
+        } catch (error) {
+            return res.status(400).json({
+                statusCode: 400,
+                msg: error.message || "Get User by Email Failed",
+                metadata: false
+            });
+        }
+    }
+
     @Post('update-profile')
     @UseInterceptors(
         FileInterceptor('avatar', {

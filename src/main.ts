@@ -19,7 +19,7 @@ async function bootstrap() {
   )
 
   app.enableCors({
-    origin: 'http://localhost:63030', // Thay port bằng cổng Flutter web (kiểm tra terminal khi chạy `flutter run -d chrome`, thường 5000-6000)
+    origin: true, // Thay port bằng cổng Flutter web (kiểm tra terminal khi chạy `flutter run -d chrome`, thường 5000-6000)
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type,Authorization',
     preflightContinue: false,

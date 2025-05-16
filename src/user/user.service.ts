@@ -11,6 +11,15 @@ export class UserService {
         return await this.userRepository.findAll();
     }
 
+    async findUserByEmail(email: string): Promise<Omit<UserEntity, 'password'> | null> {
+        const user = await this.userRepository.findUserByEmail(email);
+        if (!user) {
+            return null;
+        }
+        const { password, ...result } = user; // Loại bỏ password khỏi kết quả
+        return result;
+    }
+
     async updateUser(user: UpdateUserDto, userId: string): Promise<UserEntity> {
         if (!userId) {
             throw new Error('Missing user ID');
