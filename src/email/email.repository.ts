@@ -4,20 +4,23 @@ import { getRepository } from 'fireorm';
 import { EmailEntity, EmailModel, UserEmailEntity, UserEmailModel } from './email.entity';
 import * as admin from "firebase-admin"; 
 import { CreateEmailDto } from './dto/create-email.dto';
-import { UserEntity } from 'src/user/user.entity';
 import { UpdateEmailDto } from './dto/update-email.dto';
+import { FcmTokenModel } from 'src/auth/fcmToken.Entity';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Injectable()
 export class EmailRepository {
 
     private emailRepository = getRepository(EmailModel);
     private userEmailRepository = getRepository(UserEmailModel);
+    private fcmRepository = getRepository(FcmTokenModel);
+    private firebaseService: FirebaseService;
 
     constructor(
         @Inject('FIRESTORE') private readonly firestore: Firestore
     ){}
 
-    async findEmailsById(id: string): Promise<EmailEntity> {
+    async findEmailById(id: string): Promise<EmailEntity | null> {
         return await this.emailRepository.findById(id);
     }
 
@@ -110,6 +113,7 @@ export class EmailRepository {
         email.isDraft = true;
         email.createdAt = admin.firestore.Timestamp.now();
         email.updatedAt = admin.firestore.Timestamp.now();
+        email.replyToEmailId = emailDto.replyToEmailId;
 
         const savedEmail = await this.emailRepository.create(email);
 
@@ -143,6 +147,53 @@ export class EmailRepository {
         return await this.emailRepository.update(updated);
     }
 
+    async createAndSendEmail(emailDto: CreateEmailDto, senderId: string): Promise<EmailEntity>{
+        const email = new EmailModel();
+        email.senderId = senderId;
+        email.subject = emailDto.subject;
+        email.body = emailDto.body;
+        email.recipients = emailDto.recipients;
+        email.attachments = emailDto.attachments || [];
+        email.isDraft = false;
+        email.createdAt = admin.firestore.Timestamp.now();
+        email.updatedAt = admin.firestore.Timestamp.now();
+        email.replyToEmailId = email.replyToEmailId;
+
+        const savedEmail = await this.emailRepository.create(email);
+
+        const userEmail = new UserEmailModel();
+        userEmail.userId = senderId;
+        userEmail.emailId = savedEmail.id;
+        userEmail.mainFolder = 'sent';
+        userEmail.isRead = true;
+        userEmail.isStarred = false;
+        userEmail.customLabels = [];
+
+        await this.userEmailRepository.create(userEmail);
+
+        for (const recipient of email.recipients) {
+            const newUserEmail = new UserEmailModel();
+            newUserEmail.userId = recipient.recipientId;
+            newUserEmail.emailId = savedEmail.id;
+            newUserEmail.mainFolder = 'inbox';
+            newUserEmail.isRead = false;
+            newUserEmail.isStarred = false;
+            newUserEmail.customLabels = [];
+    
+            await this.userEmailRepository.create(newUserEmail);
+            
+            const fcmTokenUser = await this.fcmRepository.findById(recipient.recipientId);
+            if(fcmTokenUser){
+                await this.firebaseService.sendNotification(fcmTokenUser.token, 
+                    email.subject,
+                    email.body
+                )
+            }
+        }
+        
+        return savedEmail;
+    }
+
     async sendEmail(emailId: string): Promise<void>{
         const email = await this.emailRepository.findById(emailId);
         if(!email || !email.isDraft){
@@ -158,7 +209,6 @@ export class EmailRepository {
 
         await this.updateUserEmail(userEmail);
 
-
         for (const recipient of email.recipients) {
             const newUserEmail = new UserEmailModel();
             newUserEmail.userId = recipient.recipientId;
@@ -169,9 +219,16 @@ export class EmailRepository {
             newUserEmail.customLabels = [];
         
             await this.userEmailRepository.create(newUserEmail);
+
+            const fcmTokenUser = await this.fcmRepository.findById(recipient.recipientId);
+            if(fcmTokenUser){
+                await this.firebaseService.sendNotification(fcmTokenUser.token, 
+                    email.subject,
+                    email.body
+                )
+            }
         }
         
-
         return;
     }
 
@@ -216,7 +273,7 @@ export class EmailRepository {
         return await this.emailRepository.findById(emailId);
     }
 
-    async customLabel(emailIds: string[],userId: string, label: string): Promise<UserEmailEntity[]>{
+    async customLabel(emailIds: string[], userId: string, label: string): Promise<UserEmailEntity[]>{
         const updatedUserEmails: UserEmailEntity[] = [];
 
         for(const emailId of emailIds){
@@ -231,6 +288,37 @@ export class EmailRepository {
 
         return updatedUserEmails;
     }
+
+    async removeLabel(userId: string, label: string): Promise<boolean>{
+        const userEmails = await this.userEmailRepository.whereEqualTo('userId', userId).find();
+        for(const emails of userEmails){
+            const email = await this.findUserEmailByUserandEmail(emails.id, userId);
+
+            const index = email.customLabels.indexOf(label);
+            if (index !== -1) {
+                email.customLabels.splice(index, 1);
+                await this.userEmailRepository.update(email);
+            }
+        }
+        return true;
+    }
+
+    async getAllEmailOfLabel(label: string, userId: string): Promise<EmailEntity[]> {
+        const userEmails = await this.userEmailRepository. whereEqualTo('userId', userId).whereArrayContains('customLabels', label).find();
+        const emails: EmailEntity[] = [];
+    
+        for (const userEmail of userEmails) {
+            const email = await this.emailRepository.findById(userEmail.emailId);
+            if (!email) {
+                console.warn(`Không tìm thấy email với ID ${userEmail.emailId}`);
+                continue;
+            }
+            emails.push(email);
+        }
+    
+        return emails;
+    }
+    
 
     async searchEmailBySubjectOrLabel(keyword: string, userId: string): Promise<EmailEntity[]> {
         const lowerKeyword = keyword.toLowerCase();
@@ -253,6 +341,33 @@ export class EmailRepository {
     
         return matchedEmails;
     }
+
+
+    // Reply and Forward
+
+    // Reply
+
+    // async getReplyTemplate(emailId: string, currentUserId: string): Promise<EmailEntity> {
+    //     const originalEmail = await this.emailRepository.findById(emailId);
+    //     if(!originalEmail) throw new Error('Original email not found');
+
+    //     const replyTemplate: EmailEntity = {
+    //         id: '',
+    //         senderId: '',
+    //         subject: '',
+    //         body: '',
+    //         isDraft: false,
+    //         recipients: [],
+    //         attachments: [],
+    //         createdAt: new Timestamp,
+    //         updatedAt: new Timestamp
+    //     }
+    //     return {
+
+    //     }
+    // }
+
+
     
 
 }

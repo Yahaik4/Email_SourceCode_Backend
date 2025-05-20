@@ -24,5 +24,9 @@ export class CreateEmailDto{
 
     @IsOptional()
     attachments?: Attachment[];
+
+    @IsOptional()
+    @IsString()
+    replyToEmailId?: string;
     
 }

@@ -66,6 +66,7 @@ export class UserController {
         }
     }
 
+
     @Post('update-profile')
     @UseInterceptors(
         FileInterceptor('avatar', {

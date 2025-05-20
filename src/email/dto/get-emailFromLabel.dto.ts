@@ -1,10 +1,6 @@
 import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
-export class customLabelDto{
-
-    @IsNotEmpty()
-    @IsArray()
-    emailIds: string[];
+export class labelDto{
 
     @IsNotEmpty()
     @IsString()

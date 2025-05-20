@@ -12,14 +12,75 @@ import { UpdateEmailDto } from './dto/update-email.dto';
 import { SendEmailDto } from './dto/send-email.dto';
 import { customLabelDto } from './dto/customLabel.dto';
 import { SearchEmailDto } from './dto/search-email.dto';
+import { EmailRepository } from './email.repository';
 
 @Controller('email')
 export class EmailController {
     constructor(
         private readonly emailService: EmailService,
         private readonly jwtService: JwtService,
-        private readonly firebaseService: FirebaseService
+        private readonly firebaseService: FirebaseService,
+        private readonly emailRository: EmailRepository
     ){}
+
+
+    @Get('getAllEmail')
+    async getAllEmailOfLabel(@Req() req, @Res() res: Response, @Query('label') label: string,) {
+        try{
+            const userId = getUserIdFromToken(req, this.jwtService);
+            
+            if(!userId){
+                return res.status(400).json({
+                    statusCode: 400,
+                    msg: "Invalid or missing token",
+                    metadata: false
+                });
+            }else{
+                const emails = await this.emailRository.getAllEmailOfLabel(label, userId);
+                
+                return res.status(200).json({
+                    statusCode: 200,
+                    msg: "Get All Emails Successfully",
+                    metadata: emails
+                });
+            }    
+        }catch(error){
+            return res.status(400).json({
+                statusCode: 400,
+                msg: "Get All Email Starred Faild",
+                metadata: false
+            });
+        }
+    }
+
+    @Get('/:id')
+    async findEmailById(@Req() req, @Res() res: Response, @Param('id') emailId: string){
+        try{
+            const userId = getUserIdFromToken(req, this.jwtService);
+            
+            if(!userId){
+                res.status(400).json({
+                    statusCode: 400,
+                    msg: "Invalid or missing token",
+                    metadata: false
+                });
+            }else{
+                const emails = await this.emailService.findEmailById(emailId);
+
+                res.status(200).json({
+                    statusCode: 200,
+                    msg: "Get Email Successfully",
+                    metadata: emails
+                });
+            }    
+        }catch(error){
+            res.status(400).json({
+                statusCode: 400,
+                msg: error.message || "Get Email Faild",
+                metadata: false
+            });
+        }
+    }
 
     @Get('sent')
     async findAllSentEmails(@Req() req, @Res() res: Response) {
@@ -74,7 +135,7 @@ export class EmailController {
         }catch(error){
             res.status(400).json({
                 statusCode: 400,
-                msg: error.message || "Get All Email Rerecipient Faild",
+                msg: "Get All Email Rerecipient Faild",
                 metadata: false
             });
         }
@@ -288,6 +349,64 @@ export class EmailController {
         }
     }
 
+    @Post('creatAndSendEmail')
+    @UseInterceptors(FilesInterceptor('attachments'))
+    async creatAndSendEmail(
+        @UploadedFiles() files: Express.Multer.File[], 
+        @Body() emailDto: CreateEmailDto,
+        @Req() req, @Res() res: Response)
+    {
+        try{
+            const userId = getUserIdFromToken(req, this.jwtService);
+
+            if(!userId){
+                res.status(400).json({
+                    statusCode: 400,
+                    msg: "Invalid or missing token",
+                    metadata: false
+                });
+            }else{
+                const attachments: Attachment[] = [];
+                if(files && files.length > 0){
+                    for(const file of files){
+                        const upload = await this.firebaseService.uploadAttachment(file);
+                        attachments.push(upload);
+                    }
+                }
+                if(emailDto.recipients != null && Array.isArray(emailDto.recipients)){
+                    const validRecipients: RecipientData[] = [];
+
+                    for(const recipient of emailDto.recipients){
+                        const recipientId = await this.emailService.findUserIdByUserEmail(recipient.recipientId);
+
+                        if(recipientId){
+                            validRecipients.push({
+                                recipientId: recipientId,
+                                recipientType: recipient.recipientType
+                            })
+                        }
+                    }
+
+                    emailDto.recipients = validRecipients;
+                }
+                emailDto.attachments = attachments;
+                const send = await this.emailService.createAndSendEmail(emailDto, userId);
+
+                res.status(200).json({
+                    statusCode: 200,
+                    msg: "Send Email Successfully",
+                    metadata: send
+                });  
+            }
+        }catch(error){
+            res.status(400).json({
+                statusCode: 400,
+                msg: error.message || "Sent Email Faild",
+                metadata: false
+            });
+        }
+    }
+
     @Post('moveToTrash')
     async moveToTrash(
         @Body() sendEmailDto: SendEmailDto,
@@ -323,6 +442,8 @@ export class EmailController {
     @Delete('/:id')
     async deleteEmail(@Req() req, @Res() res: Response, @Param('id') emailId: string) {
         try{
+            console.log(emailId);
+            
             const userId = getUserIdFromToken(req, this.jwtService);
             
             if(!userId){
@@ -390,7 +511,7 @@ export class EmailController {
                     metadata: false
                 });
             }else{
-                const customLabel = await this.emailService.customLabel(customLabelDto.emailId, userId, customLabelDto.label);
+                const customLabel = await this.emailService.customLabel(customLabelDto.emailIds, userId, customLabelDto.label);
 
                 res.status(200).json({
                     statusCode: 200,
@@ -402,6 +523,35 @@ export class EmailController {
             res.status(400).json({
                 statusCode: 400,
                 msg: error.message || "customLabel Faild",
+                metadata: false
+            });
+        }
+    }
+
+    @Post('/removeLabel')
+    async removeLabel(@Req() req, @Res() res: Response, @Body() removeLabelDto: SearchEmailDto) {
+        try{
+            const userId = getUserIdFromToken(req, this.jwtService);
+            
+            if(!userId){
+                res.status(400).json({
+                    statusCode: 400,
+                    msg: "Invalid or missing token",
+                    metadata: false
+                });
+            }else{
+                const customLabel = await this.emailService.removeLabel(userId, removeLabelDto.keyword);
+
+                res.status(200).json({
+                    statusCode: 200,
+                    msg: "removeLabel Successfully",
+                    metadata: customLabel
+                });
+            }    
+        }catch(error){
+            res.status(400).json({
+                statusCode: 400,
+                msg: error.message || "removeLabel Faild",
                 metadata: false
             });
         }
@@ -437,6 +587,5 @@ export class EmailController {
     }
 
     
-
 
 }

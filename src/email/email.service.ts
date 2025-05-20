@@ -13,6 +13,16 @@ export class EmailService {
         private readonly authRepository: AuthRepository,
     ) {}
 
+    async findEmailById(emailId: string): Promise<EmailEntity>{
+        const email = await this.emailRepository.findEmailById(emailId);
+
+        if(!email || email == null){
+            throw new CustomException('Email does not exist');
+        }
+
+        return email
+    }
+
     async findAllSentEmails(senderId: string): Promise<EmailEntity[]>{
         return await this.emailRepository.findEmailSender(senderId);
     }
@@ -74,6 +84,18 @@ export class EmailService {
 
     async searchEmailBySubjectOrLabel(keyword: string, userId: string): Promise<EmailEntity[]> {    
         return this.emailRepository.searchEmailBySubjectOrLabel(keyword, userId);
+    }
+
+    async removeLabel(userId: string, label: string): Promise<boolean>{
+        return await this.emailRepository.removeLabel(userId, label);
+    }
+
+    async createAndSendEmail(emailDto: CreateEmailDto, senderId: string): Promise<EmailEntity>{
+        return await this.emailRepository.createAndSendEmail(emailDto, senderId);
+    }
+
+    async getAllEmailOfLabel(label: string, userId: string): Promise<EmailEntity[]> {
+        return await this.emailRepository.getAllEmailOfLabel(label,userId);
     }
     
 }

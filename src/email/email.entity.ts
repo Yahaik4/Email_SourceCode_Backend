@@ -24,6 +24,8 @@ export class EmailModel{
     attachments!: Attachment[];
     createdAt!: admin.firestore.Timestamp;
     updatedAt!: admin.firestore.Timestamp;
+
+    replyToEmailId?: string;
 }
 
 export type EmailEntity = {
@@ -36,6 +38,8 @@ export type EmailEntity = {
     attachments: Attachment[];
     createdAt: admin.firestore.Timestamp;
     updatedAt: admin.firestore.Timestamp;
+
+    replyToEmailId?: string;
 };
 
 @Collection('UserEmailModel')
