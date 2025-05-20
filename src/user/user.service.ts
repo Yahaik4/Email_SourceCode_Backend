@@ -20,6 +20,15 @@ export class UserService {
         return result;
     }
 
+    async findUserById(id: string): Promise<Omit<UserEntity, 'password'> | null> {
+        const user = await this.userRepository.findUserById(id);
+        if (!user) {
+            return null;
+        }
+        const { password, ...result } = user; // Loại bỏ password khỏi kết quả
+        return result;
+    }
+
     async updateUser(user: UpdateUserDto, userId: string): Promise<UserEntity> {
         if (!userId) {
             throw new Error('Missing user ID');

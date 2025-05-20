@@ -6,7 +6,7 @@ export const DEFAULT_SETTINGS: Settings = {
     notification_enabled: false,
     font_size: 14,
     font_family: "Roboto",
-    theme: "White"
+    theme: "Dark"
 };
 
 export type Settings = {

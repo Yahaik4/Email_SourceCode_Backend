@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Request, Response } from 'express';
@@ -65,6 +65,39 @@ export class UserController {
             });
         }
     }
+
+    @Get(':id')
+    async getUserById(@Param('id') id: string, @Res() res: Response) {
+        try {
+            if (!id) {
+                return res.status(400).json({
+                    statusCode: 400,
+                    msg: "User ID is required",
+                    metadata: false
+                });
+            }
+            const user = await this.userService.findUserById(id);
+            if (!user) {
+                return res.status(404).json({
+                    statusCode: 404,
+                    msg: "User not found",
+                    metadata: false
+                });
+            }
+            return res.status(200).json({
+                statusCode: 200,
+                msg: "Get User by ID Successfully",
+                metadata: user
+            });
+        } catch (error) {
+            return res.status(400).json({
+                statusCode: 400,
+                msg: error.message || "Get User by ID Failed",
+                metadata: false
+            });
+        }
+    }
+
 
 
     @Post('update-profile')

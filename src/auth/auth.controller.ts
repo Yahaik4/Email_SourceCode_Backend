@@ -18,7 +18,7 @@ export class AuthController {
         try {
             const userData = await this.authService.login(user);
 
-            generateToken(res, this.jwtService, {
+            const token = generateToken(res, this.jwtService, {
                 id: userData.id,
                 email: userData.email
             });
@@ -26,6 +26,7 @@ export class AuthController {
             res.status(200).json({
                 statusCode: 200,
                 msg: "Login Successfully",
+                token: token,
                 metadata: true
             });
         } catch(error) {
@@ -37,34 +38,35 @@ export class AuthController {
         }
     }
 
+    //Đổi thành bearer token để chạy đa nền tảng nha sv Huy
     @Post('signout')
-    async signout(@Res({ passthrough: true }) res: Response, @Req() req: Request)
-    {
-        try{
-            const token = req.cookies?.token;
+        async signout(@Res({ passthrough: true }) res: Response, @Req() req: Request) {
+        try {
+            const authHeader = req.headers.authorization;
+            const token = authHeader?.split(' ')[1]; // Bearer <token>
 
-            if(!token){
-                res.status(400).json({
-                    statusCode: 400,
-                    msg: 'No token found',
-                    metadata: false
-                });
-            }
-            res.clearCookie('token');
-
-            res.status(200).json({
-                statusCode: 200,
-                msg: 'Logout Successfully',
-                metadata: true,
-            });
-        }catch(error){
-            res.status(400).json({
+            if (!token) {
+            return res.status(400).json({
                 statusCode: 400,
-                msg: error.message || 'LogOut Faild',
-                metadata: false
+                msg: 'No token provided',
+                metadata: false,
+            });
+            }
+
+            res.clearCookie('token'); // vẫn xóa cookie nếu có
+
+            return res.status(200).json({
+            statusCode: 200,
+            msg: 'Logout Successfully',
+            metadata: true,
+            });
+        } catch (error) {
+            return res.status(400).json({
+            statusCode: 400,
+            msg: error.message || 'Logout Failed',
+            metadata: false,
             });
         }
-
     }
 
     @Post('register')
