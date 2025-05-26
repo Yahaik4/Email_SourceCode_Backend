@@ -14,10 +14,11 @@ export class EmailRepository {
     private emailRepository = getRepository(EmailModel);
     private userEmailRepository = getRepository(UserEmailModel);
     private fcmRepository = getRepository(FcmTokenModel);
-    private firebaseService: FirebaseService;
 
     constructor(
-        @Inject('FIRESTORE') private readonly firestore: Firestore
+        @Inject('FIRESTORE') private readonly firestore: Firestore,
+        private firebaseService: FirebaseService
+
     ){}
 
     async findEmailById(id: string): Promise<EmailEntity | null> {

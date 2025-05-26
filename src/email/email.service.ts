@@ -5,12 +5,14 @@ import { CustomException } from 'src/common/exceptions/custom.exception';
 import { AuthRepository } from 'src/auth/auth.repository';
 import { CreateEmailDto } from './dto/create-email.dto';
 import { UpdateEmailDto } from './dto/update-email.dto';
+import { EmailGateway } from './email.gateway';
 
 @Injectable()
 export class EmailService {
     constructor(
         private readonly emailRepository: EmailRepository,
         private readonly authRepository: AuthRepository,
+        private readonly emailGateway: EmailGateway,
     ) {}
 
     async findEmailById(emailId: string): Promise<EmailEntity>{
@@ -90,8 +92,21 @@ export class EmailService {
         return await this.emailRepository.removeLabel(userId, label);
     }
 
-    async createAndSendEmail(emailDto: CreateEmailDto, senderId: string): Promise<EmailEntity>{
-        return await this.emailRepository.createAndSendEmail(emailDto, senderId);
+    async createAndSendEmail(emailDto: CreateEmailDto, senderId: string): Promise<EmailEntity> {
+        const sender = await this.authRepository.findUserById(senderId);
+        if (!sender) {
+        throw new CustomException('Sender does not exist');
+        }
+
+        const email = await this.emailRepository.createAndSendEmail(emailDto, senderId);
+
+        if (emailDto.recipients && Array.isArray(emailDto.recipients)) {
+        for (const recipient of emailDto.recipients) {
+            this.emailGateway.notifyNewEmail(recipient.recipientId, email);
+        }
+        }
+
+        return email;
     }
 
     async getAllEmailOfLabel(label: string, userId: string): Promise<EmailEntity[]> {

@@ -1,12 +1,21 @@
 import { Module } from '@nestjs/common';
-import { EmailService } from './email.service';
 import { EmailController } from './email.controller';
+import { EmailService } from './email.service';
 import { EmailRepository } from './email.repository';
-import { AuthModule } from 'src/auth/auth.module';
+import { JwtService } from '@nestjs/jwt';
+import { FirebaseService } from 'src/firebase/firebase.service';
+import { EmailGateway } from './email.gateway';
+import { AuthRepository } from 'src/auth/auth.repository'; // Import AuthRepository
 
 @Module({
-  imports: [AuthModule],
-  providers: [EmailRepository ,EmailService],
-  controllers: [EmailController]
+  controllers: [EmailController],
+  providers: [
+    EmailService,
+    EmailRepository,
+    JwtService,
+    FirebaseService,
+    EmailGateway,
+    AuthRepository, // Thêm AuthRepository vào providers
+  ],
 })
 export class EmailModule {}
