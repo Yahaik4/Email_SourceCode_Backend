@@ -53,6 +53,35 @@ export class EmailController {
         }
     }
 
+    @Get('starred')
+    async getAllEmailStarred(@Req() req, @Res() res: Response) {
+        try{
+            const userId = getUserIdFromToken(req, this.jwtService);
+            
+            if(!userId){
+                res.status(400).json({
+                    statusCode: 400,
+                    msg: "Invalid or missing token",
+                    metadata: false
+                });
+            }else{
+                const emails = await this.emailService.findAllEmailStarred(userId);
+
+                res.status(200).json({
+                    statusCode: 200,
+                    msg: "Get All Emails Successfully",
+                    metadata: emails
+                });
+            }    
+        }catch(error){
+            res.status(400).json({
+                statusCode: 400,
+                msg: error.message || "Get All Email Starred Faild",
+                metadata: false
+            });
+        }
+    }
+
     @Get('/:id')
     async findEmailById(@Req() req, @Res() res: Response, @Param('id') emailId: string){
         try{
@@ -81,65 +110,7 @@ export class EmailController {
             });
         }
     }
-
-    @Get('sent')
-    async findAllSentEmails(@Req() req, @Res() res: Response) {
-        try{
-            const userId = getUserIdFromToken(req, this.jwtService);
-            
-            if(!userId){
-                res.status(400).json({
-                    statusCode: 400,
-                    msg: "Invalid or missing token",
-                    metadata: false
-                });
-            }else{
-                const emails = await this.emailService.findAllSentEmails(userId);
-
-                res.status(200).json({
-                    statusCode: 200,
-                    msg: "Get All Emails Sent Successfully",
-                    metadata: emails
-                });
-            }    
-        }catch(error){
-            res.status(400).json({
-                statusCode: 400,
-                msg: error.message || "Get All Email Send Faild",
-                metadata: false
-            });
-        }
-    }
-
-
-    @Get('rerecipient')
-    async findAllRerecipientEmails(@Req() req, @Res() res: Response) {
-        try{
-            const userId = getUserIdFromToken(req, this.jwtService);
-            
-            if(!userId){
-                res.status(400).json({
-                    statusCode: 400,
-                    msg: "Invalid or missing token",
-                    metadata: false
-                });
-            }else{
-                const emails = await this.emailService.findAllRerecipientEmails(userId);
-
-                res.status(200).json({
-                    statusCode: 200,
-                    msg: "Get All Emails Rerecipient Successfully",
-                    metadata: emails
-                });
-            }    
-        }catch(error){
-            res.status(400).json({
-                statusCode: 400,
-                msg: "Get All Email Rerecipient Faild",
-                metadata: false
-            });
-        }
-    }
+    
 
     @Get()
     async getAllEmailByFolder(@Req() req, @Res() res: Response, @Query('folder') folder: string) {
@@ -165,35 +136,6 @@ export class EmailController {
             res.status(400).json({
                 statusCode: 400,
                 msg: error.message || "Get All Email Rerecipient Faild",
-                metadata: false
-            });
-        }
-    }
-
-    @Get('starred')
-    async getAllEmailStarred(@Req() req, @Res() res: Response) {
-        try{
-            const userId = getUserIdFromToken(req, this.jwtService);
-            
-            if(!userId){
-                res.status(400).json({
-                    statusCode: 400,
-                    msg: "Invalid or missing token",
-                    metadata: false
-                });
-            }else{
-                const emails = await this.emailService.findAllEmailStarred(userId);
-
-                res.status(200).json({
-                    statusCode: 200,
-                    msg: "Get All Emails Successfully",
-                    metadata: emails
-                });
-            }    
-        }catch(error){
-            res.status(400).json({
-                statusCode: 400,
-                msg: error.message || "Get All Email Starred Faild",
                 metadata: false
             });
         }
@@ -511,12 +453,12 @@ export class EmailController {
                     metadata: false
                 });
             }else{
-                const read = await this.emailService.starredEmail(emailId.id, userId);
+                const starred = await this.emailService.starredEmail(emailId.id, userId);
 
                 res.status(200).json({
                     statusCode: 200,
                     msg: "Read Emails Successfully",
-                    metadata: read
+                    metadata: starred
                 });
             }    
         }catch(error){

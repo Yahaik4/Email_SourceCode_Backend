@@ -2,7 +2,7 @@ import { IsNotEmpty, IsOptional, IsString, IsEmail } from 'class-validator';
 
 export class SendEmailDto{
 
-    @IsOptional()
+    @IsNotEmpty()
     @IsString()
     id: string;
 

@@ -65,7 +65,7 @@ export class EmailService {
     }
 
     async findAllEmailStarred(userId: string): Promise<EmailEntity[]>{
-        return await this.emailRepository.findAllEmailStarred(userId)
+        return await this.emailRepository.findAllEmailStarred(userId);
     }
 
     async moveToTrash(emailId: string, userId: string): Promise<UserEmailEntity> {
@@ -93,7 +93,7 @@ export class EmailService {
     }
 
     async starredEmail(emailId: string, userId: string): Promise<EmailEntity>{
-        return this.emailRepository.starredEmail(userId, emailId);
+        return this.emailRepository.starredEmail(emailId, userId);
     }
 
     async createAndSendEmail(emailDto: CreateEmailDto, senderId: string): Promise<EmailEntity> {

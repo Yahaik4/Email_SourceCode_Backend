@@ -236,19 +236,22 @@ export class EmailRepository {
 
     async findAllEmailStarred(userId: string): Promise<EmailEntity[]>{
         const emailUsers = await this.userEmailRepository.whereEqualTo('userId', userId).whereEqualTo('isStarred', true).find();
-
+        console.log(emailUsers);
+        
         const emails: EmailEntity[] = [];
         for(const email of emailUsers){
-            emails.push(await this.emailRepository.findById(email.emailId));
+            const item = await this.emailRepository.findById(email.emailId)
+            emails.push(item);
         }
 
         return emails;
     }
 
-    async starredEmail(userId: string, emailId: string): Promise<EmailEntity>{
-        const userEmail = await this.findUserEmailByUserandEmail(emailId, userId);
-        userEmail.isStarred = !userEmail.isStarred;
-        await this.updateUserEmail(userEmail);
+    async starredEmail(emailId: string, userId: string): Promise<EmailEntity>{
+        const email = await this.findUserEmailByUserandEmail(emailId, userId);
+        email.isStarred = !email.isStarred;
+        
+        await this.updateUserEmail(email);
         return await this.emailRepository.findById(emailId);
     }
 
@@ -352,10 +355,18 @@ export class EmailRepository {
     }
 
     // async searchAdvanced(searchDto: SearchAdvancedEmailDto, userId: string): Promise<EmailEntity[]> {
-    //     if(searchDto.folder === 'All Mail'){
-    //         const emails = await this.userEmailRepository.whereEqualTo('userId', userId).find();
+    //     const 
 
-    //         if(searchDto.from)
+    //     if(searchDto.folder === 'All Mail'){
+    //         const userEmails = await this.userEmailRepository.whereEqualTo('userId', userId).find();
+
+    //         if(searchDto.from != null || searchDto.from != undefined){
+    //             for(const userEmail of userEmails){
+    //                 const email = await this.emailRepository.findById(userEmail.emailId);
+
+    //                 email.senderId = searchDto.from;
+    //             }
+    //         }
     //     }else{
 
     //     }
