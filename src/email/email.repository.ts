@@ -22,8 +22,36 @@ export class EmailRepository {
 
     ){}
 
-    async findEmailById(id: string): Promise<EmailEntity | null> {
-        return await this.emailRepository.findById(id);
+    async findEmailById(id: string, userId: string): Promise<EmailEntity | null> {
+        const email = await this.emailRepository.findById(id);
+
+        if(email.senderId == userId){
+            return email;
+        }
+
+        const recipientEntry = email.recipients.find(r => r.recipientId === userId);
+        if (!recipientEntry) {
+            return null;
+        }
+
+        const emailCopy = { ...email, recipients: [...email.recipients] };
+
+        switch (recipientEntry.recipientType) {
+            case 'to':
+                emailCopy.recipients = emailCopy.recipients.filter(r => r.recipientType === 'to');
+                break;
+            case 'cc':
+                break;
+            case 'bcc':
+                emailCopy.recipients = [
+                    {
+                        recipientId: userId,
+                        recipientType: 'bcc'
+                    }
+                ];
+            break;
+        }   
+        return emailCopy;
     }
 
     async findUserEmailByUserandEmail(emailId: string, userId: string): Promise<UserEmailEntity> {

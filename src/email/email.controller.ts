@@ -94,7 +94,7 @@ export class EmailController {
                     metadata: false
                 });
             }else{
-                const emails = await this.emailService.findEmailById(emailId);
+                const emails = await this.emailService.findEmailById(emailId, userId);
 
                 res.status(200).json({
                     statusCode: 200,

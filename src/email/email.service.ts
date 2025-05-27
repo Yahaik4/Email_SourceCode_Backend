@@ -15,8 +15,8 @@ export class EmailService {
         private readonly emailGateway: EmailGateway,
     ) {}
 
-    async findEmailById(emailId: string): Promise<EmailEntity>{
-        const email = await this.emailRepository.findEmailById(emailId);
+    async findEmailById(emailId: string, userId: string): Promise<EmailEntity>{
+        const email = await this.emailRepository.findEmailById(emailId, userId);
 
         if(!email || email == null){
             throw new CustomException('Email does not exist');
