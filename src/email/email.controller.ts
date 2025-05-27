@@ -486,6 +486,35 @@ export class EmailController {
 
                 res.status(200).json({
                     statusCode: 200,
+                    msg: "Starred Emails Successfully",
+                    metadata: read
+                });
+            }    
+        }catch(error){
+            res.status(400).json({
+                statusCode: 400,
+                msg: error.message || "Starred Email Faild",
+                metadata: false
+            });
+        }
+    }
+
+    @Post('/starredEmail')
+    async starredEmail(@Req() req, @Res() res: Response, @Body() emailId: SendEmailDto) {
+        try{
+            const userId = getUserIdFromToken(req, this.jwtService);
+            
+            if(!userId){
+                res.status(400).json({
+                    statusCode: 400,
+                    msg: "Invalid or missing token",
+                    metadata: false
+                });
+            }else{
+                const read = await this.emailService.starredEmail(emailId.id, userId);
+
+                res.status(200).json({
+                    statusCode: 200,
                     msg: "Read Emails Successfully",
                     metadata: read
                 });
@@ -498,6 +527,7 @@ export class EmailController {
             });
         }
     }
+
 
     @Post('/customLabel')
     async customLabel(@Req() req, @Res() res: Response, @Body() customLabelDto: customLabelDto) {

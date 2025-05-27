@@ -244,6 +244,13 @@ export class EmailRepository {
         return emails;
     }
 
+    async starredEmail(userId: string, emailId: string): Promise<EmailEntity>{
+        const userEmail = await this.findUserEmailByUserandEmail(emailId, userId);
+        userEmail.isStarred = true;
+        await this.updateUserEmail(userEmail);
+        return await this.emailRepository.findById(emailId);
+    }
+
     async moveToTrash(emailId: string, userId: string): Promise<UserEmailEntity> {
         const email = await this.findUserEmailByUserandEmail(emailId, userId);
         const existed = await this.userEmailRepository.findById(email.id);
@@ -343,7 +350,9 @@ export class EmailRepository {
         return matchedEmails;
     }
 
-
+    async searchAdvanced(){
+        
+    }
     // Reply and Forward
 
     // Reply

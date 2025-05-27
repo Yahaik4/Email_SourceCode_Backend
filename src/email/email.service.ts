@@ -92,18 +92,22 @@ export class EmailService {
         return await this.emailRepository.removeLabel(userId, label);
     }
 
+    async starredEmail(emailId: string, userId: string): Promise<EmailEntity>{
+        return this.emailRepository.starredEmail(userId, emailId);
+    }
+
     async createAndSendEmail(emailDto: CreateEmailDto, senderId: string): Promise<EmailEntity> {
         const sender = await this.authRepository.findUserById(senderId);
         if (!sender) {
-        throw new CustomException('Sender does not exist');
+            throw new CustomException('Sender does not exist');
         }
 
         const email = await this.emailRepository.createAndSendEmail(emailDto, senderId);
 
         if (emailDto.recipients && Array.isArray(emailDto.recipients)) {
-        for (const recipient of emailDto.recipients) {
-            this.emailGateway.notifyNewEmail(recipient.recipientId, email);
-        }
+            for (const recipient of emailDto.recipients) {
+                this.emailGateway.notifyNewEmail(recipient.recipientId, email);
+            }
         }
 
         return email;
