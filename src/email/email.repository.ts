@@ -7,6 +7,7 @@ import { CreateEmailDto } from './dto/create-email.dto';
 import { UpdateEmailDto } from './dto/update-email.dto';
 import { FcmTokenModel } from 'src/auth/fcmToken.Entity';
 import { FirebaseService } from 'src/firebase/firebase.service';
+import { SearchAdvancedEmailDto } from './dto/searchAdvanted-email.dto';
 
 @Injectable()
 export class EmailRepository {
@@ -246,7 +247,7 @@ export class EmailRepository {
 
     async starredEmail(userId: string, emailId: string): Promise<EmailEntity>{
         const userEmail = await this.findUserEmailByUserandEmail(emailId, userId);
-        userEmail.isStarred = true;
+        userEmail.isStarred = !userEmail.isStarred;
         await this.updateUserEmail(userEmail);
         return await this.emailRepository.findById(emailId);
     }
@@ -350,9 +351,15 @@ export class EmailRepository {
         return matchedEmails;
     }
 
-    async searchAdvanced(){
-        
-    }
+    // async searchAdvanced(searchDto: SearchAdvancedEmailDto, userId: string): Promise<EmailEntity[]> {
+    //     if(searchDto.folder === 'All Mail'){
+    //         const emails = await this.userEmailRepository.whereEqualTo('userId', userId).find();
+
+    //         if(searchDto.from)
+    //     }else{
+
+    //     }
+    // }
     // Reply and Forward
 
     // Reply
