@@ -13,6 +13,7 @@ import { SendEmailDto } from './dto/send-email.dto';
 import { customLabelDto } from './dto/customLabel.dto';
 import { SearchEmailDto } from './dto/search-email.dto';
 import { EmailRepository } from './email.repository';
+import { SearchAdvancedEmailDto } from './dto/searchAdvanted-email.dto';
 
 @Controller('email')
 export class EmailController {
@@ -81,6 +82,35 @@ export class EmailController {
             });
         }
     }
+    @Get('getAllLabel')
+    async getAllLabel(@Req() req, @Res() res: Response) {
+        try{
+            const userId = getUserIdFromToken(req, this.jwtService);
+            
+            if(!userId){
+                return res.status(400).json({
+                    statusCode: 400,
+                    msg: "Invalid or missing token",
+                    metadata: false
+                });
+            }else{
+                const label = await this.emailRository.getAllLabelByUserId(userId);
+                
+                return res.status(200).json({
+                    statusCode: 200,
+                    msg: "Get All Emails Successfully",
+                    metadata: label
+                });
+            }    
+        }catch(error){
+            return res.status(400).json({
+                statusCode: 400,
+                msg: "Get All Email Starred Faild",
+                metadata: false
+            });
+        }
+    }
+
 
     @Get('/:id')
     async findEmailById(@Req() req, @Res() res: Response, @Param('id') emailId: string){
@@ -140,6 +170,7 @@ export class EmailController {
             });
         }
     }
+
 
     @Post('saveDraft')
     @UseInterceptors(FilesInterceptor('attachments'))
@@ -280,7 +311,7 @@ export class EmailController {
                     statusCode: 200,
                     msg: "Send Email Successfully",
                     metadata: send
-                });  
+                });  ``
             }
         }catch(error){
             res.status(400).json({
@@ -471,6 +502,7 @@ export class EmailController {
     }
 
 
+
     @Post('/customLabel')
     async customLabel(@Req() req, @Res() res: Response, @Body() customLabelDto: customLabelDto) {
         try{
@@ -542,6 +574,35 @@ export class EmailController {
                 });
             }else{
                 const search = await this.emailService.searchEmailBySubjectOrLabel(searchDto.keyword, userId);
+
+                res.status(200).json({
+                    statusCode: 200,
+                    msg: "search Successfully",
+                    metadata: search
+                });
+            }    
+        }catch(error){
+            res.status(400).json({
+                statusCode: 400,
+                msg: error.message || "search Faild",
+                metadata: false
+            });
+        }
+    }
+
+    @Post('/searchAdvanced')
+    async searchAdvanced(@Req() req, @Res() res: Response, @Body() searchAdvancedDto: SearchAdvancedEmailDto) {
+        try{
+            const userId = getUserIdFromToken(req, this.jwtService);
+            
+            if(!userId){
+                res.status(400).json({
+                    statusCode: 400,
+                    msg: "Invalid or missing token",
+                    metadata: false
+                });
+            }else{
+                const search = await this.emailService.searchAdvanced(searchAdvancedDto, userId);
 
                 res.status(200).json({
                     statusCode: 200,

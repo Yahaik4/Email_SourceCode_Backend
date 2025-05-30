@@ -1,13 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Firestore } from 'firebase-admin/firestore';
 import { getRepository } from 'fireorm';
-import { EmailEntity, EmailModel, UserEmailEntity, UserEmailModel } from './email.entity';
+import { EmailEntity, EmailModel, EmailWithStatus, UserEmailEntity, UserEmailModel } from './email.entity';
+import { UserModel } from 'src/user/user.entity';
 import * as admin from "firebase-admin"; 
 import { CreateEmailDto } from './dto/create-email.dto';
 import { UpdateEmailDto } from './dto/update-email.dto';
 import { FcmTokenModel } from 'src/auth/fcmToken.Entity';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import { SearchAdvancedEmailDto } from './dto/searchAdvanted-email.dto';
+import { stringify } from 'querystring';
 
 @Injectable()
 export class EmailRepository {
@@ -22,11 +24,28 @@ export class EmailRepository {
 
     ){}
 
-    async findEmailById(id: string, userId: string): Promise<EmailEntity | null> {
+    async findEmailById(id: string, userId: string): Promise<EmailWithStatus | null> {
         const email = await this.emailRepository.findById(id);
+        if (!email) return null;
 
-        if(email.senderId == userId){
-            return email;
+        const userEmail = await this.userEmailRepository
+            .whereEqualTo('userId', userId)
+            .whereEqualTo('emailId', id)
+            .findOne();
+
+        if (!userEmail && email.senderId !== userId) {
+            return null;
+        }
+
+        const isRead = userEmail?.isRead ?? false;
+        const isStarred = userEmail?.isStarred ?? false;
+
+        if (email.senderId === userId) {
+            return {
+            ...email,
+            isRead,
+            isStarred,
+            };
         }
 
         const recipientEntry = email.recipients.find(r => r.recipientId === userId);
@@ -34,7 +53,12 @@ export class EmailRepository {
             return null;
         }
 
-        const emailCopy = { ...email, recipients: [...email.recipients] };
+        const emailCopy: EmailWithStatus = {
+            ...email,
+            recipients: [...email.recipients],
+            isRead,
+            isStarred,
+        };
 
         switch (recipientEntry.recipientType) {
             case 'to':
@@ -90,16 +114,17 @@ export class EmailRepository {
         return fullEmails;
     }
 
-    async findEmailByFolder(folder: string, userId: string): Promise<EmailEntity[]>{
+    async findEmailByFolder(folder: string, userId: string): Promise<EmailWithStatus[]>{
         const userEmails = await this.userEmailRepository.whereEqualTo('userId', userId).whereEqualTo('mainFolder', folder).find();
+        
+        const emails: EmailWithStatus[] = [];
+        for(const userEmail of userEmails){
+            const email = await this.emailRepository.findById(userEmail.emailId);
 
-        const emailIds = userEmails.map(email => email.emailId);
-        const emails: EmailEntity[] = [];
-        for(const emailId of emailIds){
-            const email = await this.emailRepository.findById(emailId);
+            if (!email) continue;
 
             if (email.senderId === userId) {
-                emails.push(email);
+                emails.push({...email, isStarred: userEmail.isStarred, isRead: userEmail.isRead});
                 continue;
             }
 
@@ -127,7 +152,11 @@ export class EmailRepository {
                     break;
             }
             
-            emails.push(emailCopy);
+            emails.push({
+                ...emailCopy,
+                isStarred: userEmail.isStarred,
+                isRead: userEmail.isRead,
+            });
         }
 
         return emails;
@@ -313,6 +342,23 @@ export class EmailRepository {
         return await this.emailRepository.findById(emailId);
     }
 
+    // CustomLabel
+
+    async getAllLabelByUserId(userId: string): Promise<string[]>{
+        const email = await this.userEmailRepository.whereEqualTo('userId', userId).find();
+
+        const customLabel: string[] = [];
+        for(const item of email){
+            for(const label of item.customLabels){
+                customLabel.push(label);
+            }
+        }
+
+        const setCustomLabel = new Set(customLabel);
+
+        return Array.from(setCustomLabel);
+    }
+
     async customLabel(emailIds: string[], userId: string, label: string): Promise<UserEmailEntity[]>{
         const updatedUserEmails: UserEmailEntity[] = [];
 
@@ -382,23 +428,68 @@ export class EmailRepository {
         return matchedEmails;
     }
 
-    // async searchAdvanced(searchDto: SearchAdvancedEmailDto, userId: string): Promise<EmailEntity[]> {
-    //     const 
+    async searchAdvanced(searchDto: SearchAdvancedEmailDto, userId: string): Promise<EmailEntity[]> {
+        const folder = searchDto.folder?.trim().toLowerCase() || 'all';
 
-    //     if(searchDto.folder === 'All Mail'){
-    //         const userEmails = await this.userEmailRepository.whereEqualTo('userId', userId).find();
+        const userEmailRepo = getRepository(UserEmailModel);
+        const emailRepo = getRepository(EmailModel);
+        const userRepo = getRepository(UserModel); // giả sử UserModel
 
-    //         if(searchDto.from != null || searchDto.from != undefined){
-    //             for(const userEmail of userEmails){
-    //                 const email = await this.emailRepository.findById(userEmail.emailId);
+        // Lấy senderId từ email truyền vào (nếu có)
+        let senderId: string | undefined = undefined;
+        if (searchDto.from) {
+            const senderUser = await userRepo.whereEqualTo('email', searchDto.from).findOne();
+            if (!senderUser) return [];
+            senderId = senderUser.id;
+        }
 
-    //                 email.senderId = searchDto.from;
-    //             }
-    //         }
-    //     }else{
+        // Query UserEmailModel theo userId + folder
+        let userEmailQuery = userEmailRepo.whereEqualTo('userId', userId);
+        if (folder !== 'all') {
+            userEmailQuery = userEmailQuery.whereEqualTo('mainFolder', folder);
+        }
+        const userEmails = await userEmailQuery.find();
+        if (userEmails.length === 0) return [];
+        const emailIds = userEmails.map(ue => ue.emailId);
 
-    //     }
-    // }
+        // Query EmailModel theo emailIds, thêm filter senderId nếu có
+        const batchSize = 10;
+        let emails: EmailEntity[] = [];
+
+        for (let i = 0; i < emailIds.length; i += batchSize) {
+            const batchIds = emailIds.slice(i, i + batchSize);
+            let emailsQuery = emailRepo.whereIn('id', batchIds);
+
+            if (senderId) {
+            emailsQuery = emailsQuery.whereEqualTo('senderId', senderId);
+            }
+
+            const batchEmails = await emailsQuery.find();
+            emails = emails.concat(batchEmails);
+        }
+
+        // Filter các điều kiện còn lại thủ công như to, subject, keyword, hasAttachment
+        const filtered = emails.filter(email => {
+            if (searchDto.to) {
+                const hasTo = email.recipients.some(r => r.recipientType === 'to' && r.recipientId === searchDto.to);
+                if (!hasTo) return false;
+            }
+            if (searchDto.subject) {
+                if (!email.subject?.toLowerCase().includes(searchDto.subject.toLowerCase())) return false;
+            }
+            if (searchDto.keyword) {
+                if (!email.body?.toLowerCase().includes(searchDto.keyword.toLowerCase())) return false;
+            }
+            if (searchDto.hasAttachment) {
+                const wantHasAttachment = searchDto.hasAttachment.toLowerCase() === 'true';
+                const hasAttachment = email.attachments && email.attachments.length > 0;
+                if (wantHasAttachment !== hasAttachment) return false;
+            }
+            return true;
+        });
+
+        return filtered;
+    }
     // Reply and Forward
 
     // Reply

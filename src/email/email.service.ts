@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { EmailRepository } from './email.repository';
-import { EmailEntity, UserEmailEntity } from './email.entity';
+import { EmailEntity, EmailWithStatus, UserEmailEntity } from './email.entity';
 import { CustomException } from 'src/common/exceptions/custom.exception';
 import { AuthRepository } from 'src/auth/auth.repository';
 import { CreateEmailDto } from './dto/create-email.dto';
 import { UpdateEmailDto } from './dto/update-email.dto';
 import { EmailGateway } from './email.gateway';
+import { SearchAdvancedEmailDto } from './dto/searchAdvanted-email.dto';
 
 @Injectable()
 export class EmailService {
@@ -15,7 +16,7 @@ export class EmailService {
         private readonly emailGateway: EmailGateway,
     ) {}
 
-    async findEmailById(emailId: string, userId: string): Promise<EmailEntity>{
+    async findEmailById(emailId: string, userId: string): Promise<EmailWithStatus>{
         const email = await this.emailRepository.findEmailById(emailId, userId);
 
         if(!email || email == null){
@@ -42,7 +43,7 @@ export class EmailService {
         return user.id;
     }
 
-    async findEmailByFolder(folder: string, userId: string): Promise<EmailEntity[]>{
+    async findEmailByFolder(folder: string, userId: string): Promise<EmailWithStatus[]>{
         return await this.emailRepository.findEmailByFolder(folder, userId);
     }
 
@@ -88,6 +89,10 @@ export class EmailService {
         return this.emailRepository.searchEmailBySubjectOrLabel(keyword, userId);
     }
 
+    async searchAdvanced(searchDto: SearchAdvancedEmailDto, userId: string): Promise<EmailEntity[]> {
+        return this.emailRepository.searchAdvanced(searchDto, userId);
+    }
+
     async removeLabel(userId: string, label: string): Promise<boolean>{
         return await this.emailRepository.removeLabel(userId, label);
     }
@@ -111,6 +116,13 @@ export class EmailService {
         }
 
         return email;
+    }
+
+
+    // CustomLabel
+
+    async getAllLabelByUserId(userId: string): Promise<string[]>{
+        return this.emailRepository.getAllLabelByUserId(userId);
     }
 
     async getAllEmailOfLabel(label: string, userId: string): Promise<EmailEntity[]> {

@@ -28,6 +28,11 @@ export class EmailModel{
     replyToEmailId?: string;
 }
 
+export type EmailWithStatus = EmailEntity & {
+  isStarred: boolean;
+  isRead: boolean;
+};
+
 export type EmailEntity = {
     id: string;
     senderId: string;
