@@ -73,8 +73,8 @@ export class EmailService {
         return await this.emailRepository.moveToTrash(emailId, userId);
     }
 
-    async deleteEmail(emailId: string): Promise<boolean> {
-        return this.emailRepository.deleteEmail(emailId);
+    async deleteEmail(emailId: string, userId: string): Promise<boolean> {
+        return this.emailRepository.deleteEmail(emailId, userId);
     }
 
     async updateReadEmail(emailId: string, userId: string): Promise<EmailEntity>{

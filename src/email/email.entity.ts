@@ -31,6 +31,7 @@ export class EmailModel{
 export type EmailWithStatus = EmailEntity & {
   isStarred: boolean;
   isRead: boolean;
+  folder: string;
 };
 
 export type EmailEntity = {
@@ -55,7 +56,8 @@ export class UserEmailModel{
     mainFolder!: "inbox" | "sent" | "draft" | "trash";
     isStarred!: boolean;
     isRead!: boolean;
-    customLabels!: string[]; 
+    customLabels!: string[];
+    previousFolder?: "inbox" | "sent" | "draft" | null; 
 }
 
 export type UserEmailEntity = {
@@ -65,7 +67,8 @@ export type UserEmailEntity = {
     mainFolder: "inbox" | "sent" | "draft" | "trash";
     isStarred: boolean;
     isRead: boolean;
-    customLabels: string[]; 
+    customLabels: string[];
+    previousFolder?: "inbox" | "sent" | "draft" | null; 
 }
 
 

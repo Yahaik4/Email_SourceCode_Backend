@@ -21,7 +21,6 @@ export class EmailRepository {
     constructor(
         @Inject('FIRESTORE') private readonly firestore: Firestore,
         private firebaseService: FirebaseService
-
     ){}
 
     async findEmailById(id: string, userId: string): Promise<EmailWithStatus | null> {
@@ -39,13 +38,18 @@ export class EmailRepository {
 
         const isRead = userEmail?.isRead ?? false;
         const isStarred = userEmail?.isStarred ?? false;
+        const folder = userEmail?.mainFolder ?? 'sent';
 
-        if (email.senderId === userId) {
-            return {
+        const emailCopy: EmailWithStatus = {
             ...email,
+            recipients: [...email.recipients],
             isRead,
             isStarred,
-            };
+            folder,
+        };
+
+        if (email.senderId === userId) {
+            return emailCopy;
         }
 
         const recipientEntry = email.recipients.find(r => r.recipientId === userId);
@@ -53,28 +57,10 @@ export class EmailRepository {
             return null;
         }
 
-        const emailCopy: EmailWithStatus = {
-            ...email,
-            recipients: [...email.recipients],
-            isRead,
-            isStarred,
-        };
+        emailCopy.recipients = email.recipients.filter(
+            r => r.recipientType === 'to' || r.recipientType === 'cc' || (r.recipientType === 'bcc' && r.recipientId === userId)
+        );
 
-        switch (recipientEntry.recipientType) {
-            case 'to':
-                emailCopy.recipients = emailCopy.recipients.filter(r => r.recipientType === 'to');
-                break;
-            case 'cc':
-                break;
-            case 'bcc':
-                emailCopy.recipients = [
-                    {
-                        recipientId: userId,
-                        recipientType: 'bcc'
-                    }
-                ];
-            break;
-        }   
         return emailCopy;
     }
 
@@ -114,49 +100,44 @@ export class EmailRepository {
         return fullEmails;
     }
 
-    async findEmailByFolder(folder: string, userId: string): Promise<EmailWithStatus[]>{
-        const userEmails = await this.userEmailRepository.whereEqualTo('userId', userId).whereEqualTo('mainFolder', folder).find();
+    async findEmailByFolder(folder: string, userId: string): Promise<EmailWithStatus[]> {
+        const userEmails = await this.userEmailRepository
+            .whereEqualTo('userId', userId)
+            .whereEqualTo('mainFolder', folder)
+            .find();
         
         const emails: EmailWithStatus[] = [];
-        for(const userEmail of userEmails){
+        for (const userEmail of userEmails) {
             const email = await this.emailRepository.findById(userEmail.emailId);
-
-            if (!email) continue;
-
-            if (email.senderId === userId) {
-                emails.push({...email, isStarred: userEmail.isStarred, isRead: userEmail.isRead});
+            if (!email) {
+                console.warn(`Email with ID ${userEmail.emailId} not found`);
                 continue;
             }
 
-            const recipientEntry = email.recipients.find(recipent => recipent.recipientId === userId);
-
-            if (!recipientEntry) {
-                continue;
-            }
-
-            const emailCopy = { ...email, recipients: [...email.recipients] };
-
-            switch (recipientEntry.recipientType) {
-                case 'to':
-                    emailCopy.recipients = emailCopy.recipients.filter(r => r.recipientType === 'to');
-                    break;
-                case 'cc':
-                    break;
-                case 'bcc':
-                    emailCopy.recipients = [
-                        {
-                            recipientId: userId,
-                            recipientType: 'bcc'
-                        }
-                    ];
-                    break;
-            }
-            
-            emails.push({
-                ...emailCopy,
+            const emailCopy: EmailWithStatus = {
+                ...email,
+                recipients: [...email.recipients],
                 isStarred: userEmail.isStarred,
                 isRead: userEmail.isRead,
-            });
+                folder: userEmail.mainFolder,
+            };
+
+            if (email.senderId === userId) {
+                emails.push(emailCopy);
+                continue;
+            }
+
+            const recipientEntry = email.recipients.find(recipient => recipient.recipientId === userId);
+            if (!recipientEntry) {
+                console.warn(`User ${userId} is not a recipient of email ${email.id}`);
+                continue;
+            }
+
+            emailCopy.recipients = email.recipients.filter(
+                r => r.recipientType === 'to' || r.recipientType === 'cc' || (r.recipientType === 'bcc' && r.recipientId === userId)
+            );
+
+            emails.push(emailCopy);
         }
 
         return emails;
@@ -183,6 +164,7 @@ export class EmailRepository {
         userEmail.isRead = true;
         userEmail.isStarred = false;
         userEmail.customLabels = [];
+        userEmail.previousFolder = null; // Initialize previousFolder
 
         await this.userEmailRepository.create(userEmail);
 
@@ -216,7 +198,7 @@ export class EmailRepository {
         email.isDraft = false;
         email.createdAt = admin.firestore.Timestamp.now();
         email.updatedAt = admin.firestore.Timestamp.now();
-        email.replyToEmailId = email.replyToEmailId;
+        email.replyToEmailId = emailDto.replyToEmailId;
 
         const savedEmail = await this.emailRepository.create(email);
 
@@ -227,6 +209,7 @@ export class EmailRepository {
         userEmail.isRead = true;
         userEmail.isStarred = false;
         userEmail.customLabels = [];
+        userEmail.previousFolder = null; // Initialize previousFolder
 
         await this.userEmailRepository.create(userEmail);
 
@@ -238,6 +221,7 @@ export class EmailRepository {
             newUserEmail.isRead = false;
             newUserEmail.isStarred = false;
             newUserEmail.customLabels = [];
+            newUserEmail.previousFolder = null; // Initialize previousFolder
     
             await this.userEmailRepository.create(newUserEmail);
             
@@ -265,6 +249,7 @@ export class EmailRepository {
 
         const userEmail = await this.findUserEmailByUserandEmail(emailId, email.senderId);
         userEmail.mainFolder = 'sent';
+        userEmail.previousFolder = null; // Reset previousFolder when sending
 
         await this.updateUserEmail(userEmail);
 
@@ -276,6 +261,7 @@ export class EmailRepository {
             newUserEmail.isRead = false;
             newUserEmail.isStarred = false;
             newUserEmail.customLabels = [];
+            newUserEmail.previousFolder = null; // Initialize previousFolder
         
             await this.userEmailRepository.create(newUserEmail);
 
@@ -291,14 +277,44 @@ export class EmailRepository {
         return;
     }
 
-    async findAllEmailStarred(userId: string): Promise<EmailEntity[]>{
-        const emailUsers = await this.userEmailRepository.whereEqualTo('userId', userId).whereEqualTo('isStarred', true).find();
-        console.log(emailUsers);
+    async findAllEmailStarred(userId: string): Promise<EmailWithStatus[]> {
+        const userEmails = await this.userEmailRepository
+            .whereEqualTo('userId', userId)
+            .whereEqualTo('isStarred', true)
+            .find();
         
-        const emails: EmailEntity[] = [];
-        for(const email of emailUsers){
-            const item = await this.emailRepository.findById(email.emailId)
-            emails.push(item);
+        const emails: EmailWithStatus[] = [];
+        for (const userEmail of userEmails) {
+            const email = await this.emailRepository.findById(userEmail.emailId);
+            if (!email) {
+                console.warn(`Email with ID ${userEmail.emailId} not found`);
+                continue;
+            }
+
+            const emailCopy: EmailWithStatus = {
+                ...email,
+                recipients: [...email.recipients],
+                isStarred: userEmail.isStarred,
+                isRead: userEmail.isRead,
+                folder: userEmail.mainFolder,
+            };
+
+            if (email.senderId === userId) {
+                emails.push(emailCopy);
+                continue;
+            }
+
+            const recipientEntry = email.recipients.find(recipient => recipient.recipientId === userId);
+            if (!recipientEntry) {
+                console.warn(`User ${userId} is not a recipient of email ${email.id}`);
+                continue;
+            }
+
+            emailCopy.recipients = email.recipients.filter(
+                r => r.recipientType === 'to' || r.recipientType === 'cc' || (r.recipientType === 'bcc' && r.recipientId === userId)
+            );
+
+            emails.push(emailCopy);
         }
 
         return emails;
@@ -313,22 +329,41 @@ export class EmailRepository {
     }
 
     async moveToTrash(emailId: string, userId: string): Promise<UserEmailEntity> {
-        const email = await this.findUserEmailByUserandEmail(emailId, userId);
-        const existed = await this.userEmailRepository.findById(email.id);
-        email.mainFolder = 'trash';
+        const userEmail = await this.findUserEmailByUserandEmail(emailId, userId);
+        const existing = await this.userEmailRepository.findById(userEmail.id);
+
+        if (userEmail.mainFolder === 'trash') {
+            userEmail.mainFolder = userEmail.previousFolder || 'inbox';
+            userEmail.previousFolder = null;
+        } else {
+            // Move to trash and store current folder
+            userEmail.previousFolder = userEmail.mainFolder;
+            userEmail.mainFolder = 'trash';
+        }
         
-        const updated = Object.assign(existed, email);
+        const updated = Object.assign(existing, userEmail);
         return await this.userEmailRepository.update(updated);
     }
 
-    async deleteEmail(emailId: string): Promise<boolean> {
-        const email = await this.emailRepository.findById(emailId);
-
-        if(!email.id){
-            throw new Error('Email not found.');
+    async deleteEmail(emailId: string, userId: string): Promise<boolean> {
+        const userEmail = await this.findUserEmailByUserandEmail(emailId, userId);
+        
+        if (userEmail.mainFolder !== 'trash') {
+            throw new Error('Email must be in trash to be deleted.');
         }
 
-        await this.emailRepository.delete(email.id);
+        await this.userEmailRepository.delete(userEmail.id);
+
+        const remainingUserEmails = await this.userEmailRepository
+            .whereEqualTo('emailId', emailId)
+            .find();
+
+        if (remainingUserEmails.length === 0) {
+            const email = await this.emailRepository.findById(emailId);
+            if (email) {
+                await this.emailRepository.delete(emailId);
+            }
+        }
 
         return true;
     }
@@ -341,8 +376,6 @@ export class EmailRepository {
 
         return await this.emailRepository.findById(emailId);
     }
-
-    // CustomLabel
 
     async getAllLabelByUserId(userId: string): Promise<string[]>{
         const email = await this.userEmailRepository.whereEqualTo('userId', userId).find();
@@ -390,7 +423,7 @@ export class EmailRepository {
     }
 
     async getAllEmailOfLabel(label: string, userId: string): Promise<EmailEntity[]> {
-        const userEmails = await this.userEmailRepository. whereEqualTo('userId', userId).whereArrayContains('customLabels', label).find();
+        const userEmails = await this.userEmailRepository.whereEqualTo('userId', userId).whereArrayContains('customLabels', label).find();
         const emails: EmailEntity[] = [];
     
         for (const userEmail of userEmails) {
@@ -404,7 +437,6 @@ export class EmailRepository {
     
         return emails;
     }
-    
 
     async searchEmailBySubjectOrLabel(keyword: string, userId: string): Promise<EmailEntity[]> {
         const lowerKeyword = keyword.toLowerCase();
@@ -433,9 +465,8 @@ export class EmailRepository {
 
         const userEmailRepo = getRepository(UserEmailModel);
         const emailRepo = getRepository(EmailModel);
-        const userRepo = getRepository(UserModel); // giả sử UserModel
+        const userRepo = getRepository(UserModel);
 
-        // Lấy senderId từ email truyền vào (nếu có)
         let senderId: string | undefined = undefined;
         if (searchDto.from) {
             const senderUser = await userRepo.whereEqualTo('email', searchDto.from).findOne();
@@ -443,7 +474,6 @@ export class EmailRepository {
             senderId = senderUser.id;
         }
 
-        // Query UserEmailModel theo userId + folder
         let userEmailQuery = userEmailRepo.whereEqualTo('userId', userId);
         if (folder !== 'all') {
             userEmailQuery = userEmailQuery.whereEqualTo('mainFolder', folder);
@@ -452,7 +482,6 @@ export class EmailRepository {
         if (userEmails.length === 0) return [];
         const emailIds = userEmails.map(ue => ue.emailId);
 
-        // Query EmailModel theo emailIds, thêm filter senderId nếu có
         const batchSize = 10;
         let emails: EmailEntity[] = [];
 
@@ -461,14 +490,13 @@ export class EmailRepository {
             let emailsQuery = emailRepo.whereIn('id', batchIds);
 
             if (senderId) {
-            emailsQuery = emailsQuery.whereEqualTo('senderId', senderId);
+                emailsQuery = emailsQuery.whereEqualTo('senderId', senderId);
             }
 
             const batchEmails = await emailsQuery.find();
             emails = emails.concat(batchEmails);
         }
 
-        // Filter các điều kiện còn lại thủ công như to, subject, keyword, hasAttachment
         const filtered = emails.filter(email => {
             if (searchDto.to) {
                 const hasTo = email.recipients.some(r => r.recipientType === 'to' && r.recipientId === searchDto.to);
@@ -490,31 +518,4 @@ export class EmailRepository {
 
         return filtered;
     }
-    // Reply and Forward
-
-    // Reply
-
-    // async getReplyTemplate(emailId: string, currentUserId: string): Promise<EmailEntity> {
-    //     const originalEmail = await this.emailRepository.findById(emailId);
-    //     if(!originalEmail) throw new Error('Original email not found');
-
-    //     const replyTemplate: EmailEntity = {
-    //         id: '',
-    //         senderId: '',
-    //         subject: '',
-    //         body: '',
-    //         isDraft: false,
-    //         recipients: [],
-    //         attachments: [],
-    //         createdAt: new Timestamp,
-    //         updatedAt: new Timestamp
-    //     }
-    //     return {
-
-    //     }
-    // }
-
-
-    
-
 }

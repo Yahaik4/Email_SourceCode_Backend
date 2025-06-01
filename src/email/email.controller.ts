@@ -426,7 +426,7 @@ export class EmailController {
                     metadata: false
                 });
             }else{
-                const result = await this.emailService.deleteEmail(emailId);
+                const result = await this.emailService.deleteEmail(emailId, userId);
 
                 res.status(200).json({
                     statusCode: 200,
