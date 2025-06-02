@@ -148,7 +148,7 @@ export class EmailRepository {
         email.senderId = senderId;
         email.subject = emailDto.subject;
         email.body = emailDto.body;
-        email.recipients = emailDto.recipients;
+        email.recipients = emailDto.recipients || [];
         email.attachments = emailDto.attachments || [];
         email.isDraft = true;
         email.createdAt = admin.firestore.Timestamp.now();
@@ -171,20 +171,29 @@ export class EmailRepository {
         return savedEmail;
     }
 
-    async updateEmailDraft(email: UpdateEmailDto): Promise<EmailEntity>{
-        if(!email.id){
+    async updateEmailDraft(email: UpdateEmailDto): Promise<EmailEntity> {
+        if (!email.id) {
             throw new Error('UserEmail ID is required for update.');
         }
 
         const existed = await this.emailRepository.findById(email.id);
 
-        if(!existed){
-            throw new Error('Invalid draft email')
+        if (!existed) {
+            throw new Error('Invalid draft email');
         }
 
         existed.updatedAt = admin.firestore.Timestamp.now();
 
-        const updated = Object.assign(existed, email);
+        const updatedAttachments = [
+            ...(existed.attachments || []), 
+            ...(email.attachments || []),
+        ];
+
+        const updated = Object.assign(existed, {
+            ...email,
+            attachments: updatedAttachments,
+        });
+
         return await this.emailRepository.update(updated);
     }
 
@@ -193,7 +202,7 @@ export class EmailRepository {
         email.senderId = senderId;
         email.subject = emailDto.subject;
         email.body = emailDto.body;
-        email.recipients = emailDto.recipients;
+        email.recipients = emailDto.recipients || [];
         email.attachments = emailDto.attachments || [];
         email.isDraft = false;
         email.createdAt = admin.firestore.Timestamp.now();

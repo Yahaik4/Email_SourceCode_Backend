@@ -20,7 +20,7 @@ export class CreateEmailDto{
             return value;
         }
     })
-    recipients: RecipientData[];
+    recipients?: RecipientData[] = [];;
 
     @IsOptional()
     attachments?: Attachment[];
