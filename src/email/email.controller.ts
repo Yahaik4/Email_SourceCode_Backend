@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Param, Post, Query, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, HttpCode, HttpStatus, Param, Post, Query, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { EmailService } from './email.service';
 import { Get, Res, Req } from '@nestjs/common';
 import { Response } from 'express';
@@ -321,6 +321,45 @@ export class EmailController {
             });
         }
     }
+
+    @Post('replies')
+    @HttpCode(HttpStatus.OK)
+    async getReplies(
+        @Body() body: { id: string },
+        @Req() req,
+        @Res() res: Response,
+    ) {
+        try {
+            const userId = getUserIdFromToken(req, this.jwtService);
+            if (!userId) {
+                return res.status(HttpStatus.BAD_REQUEST).json({
+                    statusCode: HttpStatus.BAD_REQUEST,
+                    msg: 'Invalid or missing token',
+                    metadata: false,
+                });
+            }
+            if (!body.id) {
+                return res.status(HttpStatus.BAD_REQUEST).json({
+                    statusCode: HttpStatus.BAD_REQUEST,
+                    msg: 'Missing or invalid id in request body',
+                    metadata: false,
+                });
+            }
+            const replies = await this.emailService.findRepliesByEmailId(body.id, userId);
+            return res.status(HttpStatus.OK).json({
+                statusCode: HttpStatus.OK,
+                msg: 'Get Replies Successfully',
+                metadata: replies,
+            });
+        } catch (error) {
+            return res.status(HttpStatus.BAD_REQUEST).json({
+                statusCode: HttpStatus.BAD_REQUEST,
+                msg: error.message || 'Get Replies Failed',
+                metadata: false,
+            });
+        }
+    }
+    
 
     @Post('creatAndSendEmail')
     @UseInterceptors(FilesInterceptor('attachments'))

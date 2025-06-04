@@ -13,15 +13,68 @@ import { stringify } from 'querystring';
 
 @Injectable()
 export class EmailRepository {
-
     private emailRepository = getRepository(EmailModel);
     private userEmailRepository = getRepository(UserEmailModel);
     private fcmRepository = getRepository(FcmTokenModel);
+    private userRepository = getRepository(UserModel);
 
     constructor(
         @Inject('FIRESTORE') private readonly firestore: Firestore,
         private firebaseService: FirebaseService
     ){}
+
+    async findRepliesByEmailId(emailId: string, userId: string): Promise<EmailWithStatus[]> {
+        if (!emailId) {
+            throw new Error('emailId is required');
+        }
+        if (!userId) {
+            throw new Error('userId is required');
+        }
+
+        const userEmails = await this.userEmailRepository
+            .whereEqualTo('userId', userId)
+            .find();
+        
+        const replyEmails = await this.emailRepository
+            .whereEqualTo('replyToEmailId', emailId)
+            .find();
+        
+        const emails: EmailWithStatus[] = [];
+        for (const email of replyEmails) {
+            const userEmail = userEmails.find(ue => ue.emailId === email.id);
+            if (!userEmail && email.senderId !== userId) {
+                continue;
+            }
+
+            const sender = await this.userRepository.findById(email.senderId);
+            const emailCopy: EmailWithStatus = {
+                ...email,
+                recipients: [...email.recipients],
+                isStarred: userEmail?.isStarred ?? false,
+                isRead: userEmail?.isRead ?? false,
+                folder: userEmail?.mainFolder ?? 'sent',
+                senderEmail: sender?.email ?? 'unknown@example.com',
+            };
+
+            if (email.senderId === userId) {
+                emails.push(emailCopy);
+                continue;
+            }
+
+            const recipientEntry = email.recipients.find(r => r.recipientId === userId);
+            if (!recipientEntry) {
+                continue;
+            }
+
+            emailCopy.recipients = email.recipients.filter(
+                r => r.recipientType === 'to' || r.recipientType === 'cc' || (r.recipientType === 'bcc' && r.recipientId === userId)
+            );
+
+            emails.push(emailCopy);
+        }
+
+        return emails;
+    }
 
     async findEmailById(id: string, userId: string): Promise<EmailWithStatus | null> {
         const email = await this.emailRepository.findById(id);
@@ -164,7 +217,7 @@ export class EmailRepository {
         userEmail.isRead = true;
         userEmail.isStarred = false;
         userEmail.customLabels = [];
-        userEmail.previousFolder = null; // Initialize previousFolder
+        userEmail.previousFolder = null;
 
         await this.userEmailRepository.create(userEmail);
 
@@ -218,7 +271,7 @@ export class EmailRepository {
         userEmail.isRead = true;
         userEmail.isStarred = false;
         userEmail.customLabels = [];
-        userEmail.previousFolder = null; // Initialize previousFolder
+        userEmail.previousFolder = null;
 
         await this.userEmailRepository.create(userEmail);
 
@@ -230,7 +283,7 @@ export class EmailRepository {
             newUserEmail.isRead = false;
             newUserEmail.isStarred = false;
             newUserEmail.customLabels = [];
-            newUserEmail.previousFolder = null; // Initialize previousFolder
+            newUserEmail.previousFolder = null;
     
             await this.userEmailRepository.create(newUserEmail);
             
@@ -258,7 +311,7 @@ export class EmailRepository {
 
         const userEmail = await this.findUserEmailByUserandEmail(emailId, email.senderId);
         userEmail.mainFolder = 'sent';
-        userEmail.previousFolder = null; // Reset previousFolder when sending
+        userEmail.previousFolder = null;
 
         await this.updateUserEmail(userEmail);
 
@@ -270,7 +323,7 @@ export class EmailRepository {
             newUserEmail.isRead = false;
             newUserEmail.isStarred = false;
             newUserEmail.customLabels = [];
-            newUserEmail.previousFolder = null; // Initialize previousFolder
+            newUserEmail.previousFolder = null;
         
             await this.userEmailRepository.create(newUserEmail);
 
@@ -345,7 +398,6 @@ export class EmailRepository {
             userEmail.mainFolder = userEmail.previousFolder || 'inbox';
             userEmail.previousFolder = null;
         } else {
-            // Move to trash and store current folder
             userEmail.previousFolder = userEmail.mainFolder;
             userEmail.mainFolder = 'trash';
         }

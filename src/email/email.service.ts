@@ -30,6 +30,12 @@ export class EmailService {
         return await this.emailRepository.findEmailSender(senderId);
     }
 
+    async findRepliesByEmailId(replyToEmailId: string, userId: string): Promise<EmailWithStatus[]> {
+         if (!replyToEmailId) { throw new CustomException('Invalid or missing emailId'); }
+        const replies = await this.emailRepository.findRepliesByEmailId(replyToEmailId, userId);
+        return replies;
+    }
+
     async findAllRerecipientEmails(rerecipientId: string): Promise<EmailEntity[]>{
         return await this.emailRepository.findEmailRerecipient(rerecipientId);
     }

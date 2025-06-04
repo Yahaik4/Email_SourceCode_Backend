@@ -32,6 +32,7 @@ export type EmailWithStatus = EmailEntity & {
   isStarred: boolean;
   isRead: boolean;
   folder: string;
+  senderEmail?: String;
 };
 
 export type EmailEntity = {
