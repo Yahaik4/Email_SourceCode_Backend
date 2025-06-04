@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { FirebaseModule } from './firebase/firebase.module';
 import { AuthModule } from './auth/auth.module';
 import { EmailModule } from './email/email.module';
+import { LabelModule } from './label/label.module';
 
 @Module({
   imports: [
@@ -11,7 +12,8 @@ import { EmailModule } from './email/email.module';
     FirebaseModule,
     UserModule,
     AuthModule,
-    EmailModule
+    EmailModule,
+    LabelModule
   ],
 })
 export class AppModule {}
