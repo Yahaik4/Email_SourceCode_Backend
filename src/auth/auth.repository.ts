@@ -75,4 +75,20 @@ export class AuthRepository {
         return newUser;
     }
 
+    async changePassword(userId: string, newPassword: string): Promise<void> {
+        const user = await this.findUserById(userId);
+
+        if (!user) {
+            throw new CustomException('User not found');
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        await this.userRepository.update({
+            ...user,
+            password: hashedPassword,
+            updateAt: admin.firestore.Timestamp.now()
+        });
+    }
+
 }

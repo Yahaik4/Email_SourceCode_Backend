@@ -25,6 +25,10 @@ export class AuthService {
         return userData;
     }
 
+    async changePassword(userId: string, newPassword: string): Promise<void> {
+        await this.authRepository.changePassword(userId, newPassword);
+    }
+
     async register(user: RegisterDto): Promise<UserEntity> {
         const userData = await this.authRepository.Register(user);
         if (!userData) {

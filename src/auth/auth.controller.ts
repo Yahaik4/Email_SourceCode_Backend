@@ -1,10 +1,11 @@
-import { Body, Controller, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Param, Post, Put, Req, Res } from '@nestjs/common';
 import { LoginDto } from './dto/login.dto';
 import { AuthService } from './auth.service';
 import { Request, Response } from 'express';
 import { generateToken } from 'src/utils/jwt.util';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterDto } from './dto/register.dto';
+import { ChangePasswordDto } from './dto/change_password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -33,6 +34,28 @@ export class AuthController {
             res.status(400).json({
                 statusCode: 400,
                 msg: error.message || 'Login Failed',
+                metadata: false
+            });
+        }
+    }
+
+    @Put(':id/password')
+    async changePassword(
+        @Param('id') id: string,
+        @Body() changePasswordDto: ChangePasswordDto,
+        @Res() res: Response
+    ) {
+        try {
+            await this.authService.changePassword(id, changePasswordDto.password);
+            res.status(200).json({
+                statusCode: 200,
+                msg: "Password changed successfully",
+                metadata: true
+            });
+        } catch (error) {
+            res.status(400).json({
+                statusCode: 400,
+                msg: error.message || 'Failed to change password',
                 metadata: false
             });
         }
