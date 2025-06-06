@@ -19,7 +19,9 @@ export class AuthService {
             throw new UnauthorizedException('Invalid credentials');
         }
 
-        await this.fcmTokenRepository.saveToken(userData.id, user.fcmToken);
+        if (user.fcmToken) {
+               await this.fcmTokenRepository.saveToken(userData.id, user.fcmToken);
+        }   
         return userData;
     }
 

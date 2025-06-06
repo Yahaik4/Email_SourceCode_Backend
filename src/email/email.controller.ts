@@ -293,30 +293,31 @@ export class EmailController {
     @Post('sent')
     async sendEmail(
         @Body() sendEmailDto: SendEmailDto,
-        @Req() req, @Res() res: Response)
-    {
-        try{
+        @Req() req,
+        @Res() res: Response
+    ) {
+        try {
             const userId = getUserIdFromToken(req, this.jwtService);
 
-            if(!userId){
-                res.status(400).json({
+            if (!userId) {
+                return res.status(400).json({
                     statusCode: 400,
                     msg: "Invalid or missing token",
                     metadata: false
                 });
-            }else{
-                const send = await this.emailService.sendEmail(sendEmailDto.id);
-
-                res.status(200).json({
-                    statusCode: 200,
-                    msg: "Send Email Successfully",
-                    metadata: send
-                });  ``
             }
-        }catch(error){
-            res.status(400).json({
+
+            await this.emailService.sendEmail(sendEmailDto.id, userId);
+
+            return res.status(200).json({
+                statusCode: 200,
+                msg: "Send Email Successfully",
+                metadata: true
+            });
+        } catch (error) {
+            return res.status(400).json({
                 statusCode: 400,
-                msg: error.message || "Sent Email Faild",
+                msg: error.message || "Send Email Failed",
                 metadata: false
             });
         }

@@ -51,9 +51,12 @@ export class FirebaseService {
     }
   }
 
-  async sendNotification(token: string, title: string, body: string) {
+  async sendNotification(token: string, sender: string, subject: string, body: string) {
     const message = {
-      notification: { title, body },
+      notification: {
+        title: `You received new email from: ${sender}`,
+        body: `Subject: ${subject}\nBody: ${body}`,
+      },
       token,
     };
     try {

@@ -1,4 +1,4 @@
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsOptional } from 'class-validator';
 
 export class LoginDto{
     @IsNotEmpty()
@@ -7,7 +7,7 @@ export class LoginDto{
     @IsNotEmpty()
     password: string;
 
-    @IsNotEmpty()
-    fcmToken: string;
+    @IsOptional()
+    fcmToken?: string;
 
 }

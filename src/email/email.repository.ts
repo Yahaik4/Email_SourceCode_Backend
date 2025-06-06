@@ -250,7 +250,7 @@ export class EmailRepository {
         return await this.emailRepository.update(updated);
     }
 
-    async createAndSendEmail(emailDto: CreateEmailDto, senderId: string): Promise<EmailEntity>{
+    async createAndSendEmail(emailDto: CreateEmailDto, senderId: string): Promise<EmailEntity> {
         const email = new EmailModel();
         email.senderId = senderId;
         email.subject = emailDto.subject;
@@ -284,35 +284,42 @@ export class EmailRepository {
             newUserEmail.isStarred = false;
             newUserEmail.customLabels = [];
             newUserEmail.previousFolder = null;
-    
+
             await this.userEmailRepository.create(newUserEmail);
-            
-            const fcmTokenUser = await this.fcmRepository.findById(recipient.recipientId);
-            if(fcmTokenUser){
-                await this.firebaseService.sendNotification(fcmTokenUser.token, 
-                    email.subject,
-                    email.body
-                )
+
+            const recipientUser = await this.userRepository.findById(recipient.recipientId);
+            if (recipientUser && recipientUser.setting.notification_enabled) {
+                const fcmTokenUser = await this.fcmRepository.findById(recipient.recipientId);
+                if (fcmTokenUser) {
+                    await this.firebaseService.sendNotification(
+                        fcmTokenUser.token,
+                        recipientUser.username,
+                        email.subject,
+                        email.body
+                    );
+                }
             }
         }
-        
+
         return savedEmail;
     }
 
-    async sendEmail(emailId: string): Promise<void>{
+    async sendEmail(emailId: string, senderId: string): Promise<EmailEntity> {
         const email = await this.emailRepository.findById(emailId);
-        if(!email || !email.isDraft){
-            throw new Error('Invalid draft email')
+        if (!email || !email.isDraft) {
+            throw new Error('Invalid draft email');
+        }
+        if (email.senderId !== senderId) {
+            throw new Error('Unauthorized: Sender ID does not match');
         }
 
         email.isDraft = false;
         email.updatedAt = admin.firestore.Timestamp.now();
         await this.emailRepository.update(email);
 
-        const userEmail = await this.findUserEmailByUserandEmail(emailId, email.senderId);
+        const userEmail = await this.findUserEmailByUserandEmail(emailId, senderId);
         userEmail.mainFolder = 'sent';
         userEmail.previousFolder = null;
-
         await this.updateUserEmail(userEmail);
 
         for (const recipient of email.recipients) {
@@ -324,19 +331,24 @@ export class EmailRepository {
             newUserEmail.isStarred = false;
             newUserEmail.customLabels = [];
             newUserEmail.previousFolder = null;
-        
+
             await this.userEmailRepository.create(newUserEmail);
 
-            const fcmTokenUser = await this.fcmRepository.findById(recipient.recipientId);
-            if(fcmTokenUser){
-                await this.firebaseService.sendNotification(fcmTokenUser.token, 
-                    email.subject,
-                    email.body
-                )
+            const recipientUser = await this.userRepository.findById(recipient.recipientId);
+            if (recipientUser && recipientUser.setting.notification_enabled) {
+                const fcmTokenUser = await this.fcmRepository.findById(recipient.recipientId);
+                if (fcmTokenUser) {
+                    await this.firebaseService.sendNotification(
+                        fcmTokenUser.token,
+                        recipientUser.username,
+                        email.subject,
+                        email.body
+                    );
+                }
             }
         }
-        
-        return;
+
+        return email;
     }
 
     async findAllEmailStarred(userId: string): Promise<EmailWithStatus[]> {

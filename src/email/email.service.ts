@@ -67,8 +67,16 @@ export class EmailService {
         return await this.emailRepository.updateEmailDraft(email);
     }
 
-    async sendEmail(emailId: string): Promise<void>{
-        return await this.emailRepository.sendEmail(emailId);
+    async sendEmail(emailId: string, senderId: string): Promise<void> {
+        const email = await this.emailRepository.sendEmail(emailId, senderId);
+
+        if (email.recipients && Array.isArray(email.recipients)) {
+            for (const recipient of email.recipients) {
+                this.emailGateway.notifyNewEmail(recipient.recipientId, email);
+            }
+        }
+
+        return;
     }
 
     async findAllEmailStarred(userId: string): Promise<EmailEntity[]>{
