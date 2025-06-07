@@ -19,7 +19,7 @@ async function bootstrap() {
   )
 
   app.enableCors({
-    origin: true, // Thay port bằng cổng Flutter web (kiểm tra terminal khi chạy `flutter run -d chrome`, thường 5000-6000)
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000', // URL của Firebase Hosting
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type,Authorization,Cookie',
     preflightContinue: false,
