@@ -6,11 +6,8 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
-RUN mkdir -p /app/firebase
-COPY src/firebase/firebase-service-account.json /app/firebase/firebase-service-account.json
-
 RUN npm run build
 
 EXPOSE 3000
 
-CMD ["node", "dist/main"]
+CMD sh -c "mkdir -p /app/firebase && echo \"$FIREBASE_SERVICE_ACCOUNT_JSON\" > /app/firebase/firebase-service-account.json && node dist/main"
