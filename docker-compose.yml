@@ -1,0 +1,10 @@
+services:
+  backend:
+    image: huyquang04/emailapp:latest
+    container_name: backend-container
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./src/firebase/firebase-service-account.json:/app/firebase/firebase-service-account.json:ro
