@@ -3,7 +3,10 @@
 /node_modules
 /build
 
+# Firebase credentials
 src/firebase/firebase-service-account.json
+serviceAccountKey.json
+
 # Logs
 logs
 *.log
